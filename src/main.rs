@@ -4,6 +4,9 @@ use net_analyzer;
 const TEST_IP:IpAddr = IpAddr::V4(Ipv4Addr::new(172,253,118,101));
 
 fn main() {
+
+    
+
     let path = net_analyzer::trace(TEST_IP);
     match path {
         Ok(p) => {
