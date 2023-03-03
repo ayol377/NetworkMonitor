@@ -1,0 +1,39 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Document</title>
+  </head>
+  <body>
+    <h1 id="header">Welcome from Tauri!</h1>
+    <p id="tracedata">data</p>
+    <script>
+      // access the pre-bundled global API functions
+      const { invoke } = window.__TAURI__.tauri
+
+      // now we can call our Command!
+      // You will see "Welcome from Tauri" replaced
+      // by "Hello, World!"!
+      invoke('greet', { name: 'World' })
+        // `invoke` returns a Promise
+        .then((response) => {
+          window.header.innerHTML = response
+        })
+
+
+    </script>
+    <button onclick="myFunction()">Click me</button>
+    <script>
+      function myFunction(){
+
+        const { invoke } = window.__TAURI__.tauri
+
+        invoke('tracedump').then((response) => {
+            window.tracedata.innerHTML = response
+        })
+
+      }
+    </script>
+  </body>
+</html>

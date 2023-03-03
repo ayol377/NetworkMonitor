@@ -1,7 +1,0 @@
-[package]
-name = "network_monitor"
-version = "0.1.0"
-edition = "2021"
-
-[dependencies]
-net_analyzer = { version = "0.1.0", path = "net_analyzer" }
