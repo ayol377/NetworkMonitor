@@ -3,42 +3,61 @@
   windows_subsystem = "windows"
 )]
 
-const TEST_IP:IpAddr = IpAddr::V4(Ipv4Addr::new(172,253,118,101));
-
-use std::net::{IpAddr, Ipv4Addr};
+// Imports
+use std::{net::{IpAddr}};
 use net_analyzer;
 
-fn main() {
+// Modules
+mod bootstrapper;
 
+fn main() {
   tauri::Builder::default()
-    .invoke_handler(tauri::generate_handler![tracedump])
-    //.invoke_handler(tauri::generate_handler![greet])
+    .invoke_handler(tauri::generate_handler![hosts])
     .run(tauri::generate_context!())
     .expect("error while running tauri application");
 }
 
 #[tauri::command]
-fn greet(name: &str) -> String {
-  format!("Hello, {}!", name)
+async fn hosts() -> String{
+
+  let mut s_hosts:String = "".to_owned();
+  let scan_result = net_analyzer::scan();
+  match scan_result {
+      Ok(up_hosts) => {
+        for ip in up_hosts{
+          let r_path = path(ip);
+          match r_path {
+              Ok(s) => {
+                let s = s.as_str();
+                let hostline = format!("{} : {}", ip, s);
+                let hostline = hostline.as_str();
+                print!("{}", hostline);
+                s_hosts.push_str(hostline);
+              }
+              Err(_e) => todo!(),
+          }
+        }
+      },
+      Err(_e) => todo!(),
+  }
+  s_hosts
 }
 
-#[tauri::command]
-async fn tracedump() -> String{
-  let path = net_analyzer::trace(TEST_IP);
+fn path(dest:IpAddr) -> Result<String, String>{
+  let path = net_analyzer::trace(dest);
   let mut pathto:String = "".to_owned();
   match path {
       Ok(p) => {
           for ip in p {
-              pathto.push_str("| <br>");
-              pathto.push_str("| <br>");
-              let ipstr = format!("{} <br>", ip);
+              pathto.push_str(" <= ");
+              let ipstr = format!("{}", ip);
               let ipstr2 = ipstr.as_str();
               pathto.push_str(ipstr2);
           }
-          print!("{}", pathto);
-          print!("Done!");
+          return Result::Ok(pathto);
       },
-      Err(_e) => return format!("Failed"),
+      Err(_e) => todo!(),
   }
-  pathto
 }
+
+

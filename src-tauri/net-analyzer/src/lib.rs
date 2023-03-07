@@ -1,23 +1,37 @@
-use std::net::IpAddr;
-use tracert::{self, ping::{Pinger, PingStatus}};
+//!
+//! 
 
+// Imports
+use std::{net::{IpAddr, Ipv4Addr}, time::Duration};
+use tracert::{self, ping::{Pinger}};
+use ipnetwork::{self, Ipv4Network};
 
-pub fn scan(gateway:IpAddr){
-    todo!();
-}
+// Constants
+const DEF_GATEWAY:Ipv4Addr = Ipv4Addr::new(192, 168, 1, 1);
+const net_prefix:u8 = 8;
 
-pub fn ping(dest_ip:IpAddr) -> Result<PingStatus, String>{
-    let ip_pinger = Pinger::new(dest_ip);
-            match ip_pinger {
-                Ok(p) => {
-                    let ip_ping = p.ping();
-                    match ip_ping {
-                        Ok(p) => return Result::Ok(p.status),
-                        Err(e) => return Result::Err(e),
-                    }
-                }
-                Err(e) => return Result::Err(e),
+pub fn scan() -> Result<Vec<IpAddr>, String>{
+    let mut up_hosts = vec![];
+    let mut possible_hosts:Vec<Ipv4Addr> = vec![];
+
+    // Find all IP addresses of network
+    match Ipv4Network::new(DEF_GATEWAY, net_prefix){
+        Ok(local_net) => {
+            let net_size = local_net.size() - 1;
+            for x in 0..net_size{
+                possible_hosts.push(local_net.nth(x).unwrap())
             }
+        },
+        Err(e) => println!("{}", e),
+    }
+
+    // Identify online hosts
+    for ip in  possible_hosts{
+
+    }
+
+
+    return Result::Ok(up_hosts);
 }
 
 pub fn trace(dest_ip:IpAddr) -> Result<Vec<IpAddr>, String>{
@@ -26,17 +40,6 @@ pub fn trace(dest_ip:IpAddr) -> Result<Vec<IpAddr>, String>{
     match ip_tracer {
         Ok(t) => {
             println!("Tracer Setup Successfull");
-            let ping_r = ping(dest_ip);
-            match ping_r {
-                Ok(ps) =>{
-                    match ps {
-                        PingStatus::Done => println!("Host Up!"),
-                        PingStatus::Error => return Result::Err("Ping Error!".to_string()),
-                        PingStatus::Timeout => return Result::Err("Destination Host Cant be Reached".to_string()),
-                    }
-                }
-                Err(e) => return Result::Err(e),
-            }
             let ip_trace:Result<tracert::trace::TraceResult, String> = t.trace();
             match ip_trace{
                 

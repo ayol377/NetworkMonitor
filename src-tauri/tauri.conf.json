@@ -29,7 +29,7 @@
         "icons/icon.icns",
         "icons/icon.ico"
       ],
-      "identifier": "com.tauri.dev",
+      "identifier": "com.ayaal.netsecure",
       "longDescription": "",
       "macOS": {
         "entitlements": null,
@@ -57,9 +57,9 @@
       {
         "fullscreen": false,
         "height": 600,
-        "resizable": true,
-        "title": "NetSecure",
-        "width": 800
+        "resizable": false,
+        "title": "",
+        "width": 1000
       }
     ]
   }
