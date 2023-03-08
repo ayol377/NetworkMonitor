@@ -1,63 +1,47 @@
+//!
+//!
+
 #![cfg_attr(
-  all(not(debug_assertions), target_os = "windows"),
-  windows_subsystem = "windows"
+    all(not(debug_assertions), target_os = "windows"),
+    windows_subsystem = "windows"
 )]
 
 // Imports
-use std::{net::{IpAddr}};
-use net_analyzer;
+use std::{fs::{File, create_dir}};
+use tauri::PathResolver;
+use platform_dirs;
 
 // Modules
 mod bootstrapper;
+mod database;
+mod net_analyzer;
+mod structs;
 
 fn main() {
-  tauri::Builder::default()
-    .invoke_handler(tauri::generate_handler![hosts])
-    .run(tauri::generate_context!())
-    .expect("error while running tauri application");
+    let path = platform_dirs::AppDirs::new(Option::Some("NetSecure"), false).unwrap();
+    let mut path = path.data_dir;
+    path.push("data.db");
+    println!("{}", path.display());
+    match File::open(path) {
+        Ok(_db) => {
+            println!("Database Available")
+        }
+        Err(_) => bootstrapper::initialize_db(),
+    }
+    match net_analyzer::scan() {
+        Ok(devices) => {
+            for device in devices {
+                println!("Adding device to database");
+                database::add_device(device);
+            }
+        }
+        Err(_) => todo!(),
+    }
+    tauri::Builder::default()
+        .invoke_handler(tauri::generate_handler![hosts])
+        .run(tauri::generate_context!())
+        .expect("error while running tauri application");
 }
 
 #[tauri::command]
-async fn hosts() -> String{
-
-  let mut s_hosts:String = "".to_owned();
-  let scan_result = net_analyzer::scan();
-  match scan_result {
-      Ok(up_hosts) => {
-        for ip in up_hosts{
-          let r_path = path(ip);
-          match r_path {
-              Ok(s) => {
-                let s = s.as_str();
-                let hostline = format!("{} : {}", ip, s);
-                let hostline = hostline.as_str();
-                print!("{}", hostline);
-                s_hosts.push_str(hostline);
-              }
-              Err(_e) => todo!(),
-          }
-        }
-      },
-      Err(_e) => todo!(),
-  }
-  s_hosts
-}
-
-fn path(dest:IpAddr) -> Result<String, String>{
-  let path = net_analyzer::trace(dest);
-  let mut pathto:String = "".to_owned();
-  match path {
-      Ok(p) => {
-          for ip in p {
-              pathto.push_str(" <= ");
-              let ipstr = format!("{}", ip);
-              let ipstr2 = ipstr.as_str();
-              pathto.push_str(ipstr2);
-          }
-          return Result::Ok(pathto);
-      },
-      Err(_e) => todo!(),
-  }
-}
-
-
+async fn hosts() {}
