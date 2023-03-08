@@ -7,9 +7,9 @@
 )]
 
 // Imports
-use std::{fs::{File, create_dir}};
-use tauri::PathResolver;
-use platform_dirs;
+use std::{fs::{File, create_dir}, net::{Ipv4Addr, IpAddr}};
+use if_addrs;
+use system_info::network::Ip;
 
 // Modules
 mod bootstrapper;
@@ -28,7 +28,24 @@ fn main() {
         }
         Err(_) => bootstrapper::initialize_db(),
     }
-    match net_analyzer::scan() {
+
+    let mut dev_ip:IpAddr = IpAddr::V4(Ipv4Addr::new(1,1,1,1));
+    for iface in if_addrs::get_if_addrs().unwrap(){
+      if iface.is_link_local(){break;}
+      if iface.is_loopback(){break;}
+      if iface.addr.ip().is_ipv4() {
+        dev_ip = iface.addr.ip();
+        println!("My IP: {}", dev_ip);
+      }
+    }
+    let mut dev_ipv4:Ipv4Addr = Ipv4Addr::new(1, 1 , 1, 1);
+    match dev_ip {
+        IpAddr::V4(ip) => dev_ipv4 = ip,
+        IpAddr::V6(_) => {
+          println!("Something went wrong");
+        },
+    }
+    match net_analyzer::scan(dev_ipv4) {
         Ok(devices) => {
             for device in devices {
                 println!("Adding device to database");

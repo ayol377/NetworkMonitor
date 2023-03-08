@@ -14,7 +14,7 @@ const DEF_GATEWAY:Ipv4Addr = Ipv4Addr::new(192, 168, 1, 1);
 const NET_PREFIX:u8 = 8;
 
 
-pub fn scan() -> Result<Vec<Device>, String>{
+pub fn scan(dev_ip: Ipv4Addr) -> Result<Vec<Device>, String>{
     let mut devices:Vec<Device> = vec![];
     let mut possible_hosts:Vec<Ipv4Addr> = vec![];
 
@@ -29,7 +29,7 @@ pub fn scan() -> Result<Vec<Device>, String>{
     let mut cmd = Command::new("arp");
     cmd.arg("-a");
     cmd.arg("-N");
-    cmd.arg("192.168.1.112");
+    cmd.arg(format!("{}", dev_ip));
     //cmd.arg("-a");
 
     match cmd.output() {
