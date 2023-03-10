@@ -1,3 +1,2 @@
-/target
-/src-tauri/target
-/net_analyzer/target
+**/target
+**/dist

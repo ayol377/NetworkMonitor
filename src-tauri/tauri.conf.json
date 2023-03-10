@@ -1,9 +1,9 @@
 {
   "build": {
-    "beforeBuildCommand": "",
-    "beforeDevCommand": "",
-    "devPath": "../ui",
-    "distDir": "../ui",
+    "beforeBuildCommand": "cd frontend && trunk build",
+    "beforeDevCommand": "cd frontend && trunk serve --port 3000",
+    "devPath": "http://localhost:3000/",
+    "distDir": "../frontend/dist",
     "withGlobalTauri": true
   },
   "package": {

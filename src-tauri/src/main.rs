@@ -7,9 +7,11 @@
 )]
 
 // Imports
-use std::{fs::{File, create_dir}, net::{Ipv4Addr, IpAddr}};
-use if_addrs;
-use system_info::network::Ip;
+use crate::net_analyzer::*;
+use std::{
+    fs::{File},
+    net::{IpAddr, Ipv4Addr},
+};
 
 // Modules
 mod bootstrapper;
@@ -18,10 +20,10 @@ mod net_analyzer;
 mod structs;
 
 fn main() {
-    let path = platform_dirs::AppDirs::new(Option::Some("NetSecure"), false).unwrap();
+    // Make sure database is available
+    let path = platform_dirs::AppDirs::new(Option::Some("NetSecure/data"), false).unwrap();
     let mut path = path.data_dir;
     path.push("data.db");
-    println!("{}", path.display());
     match File::open(path) {
         Ok(_db) => {
             println!("Database Available")
@@ -29,21 +31,22 @@ fn main() {
         Err(_) => bootstrapper::initialize_db(),
     }
 
-    let mut dev_ip:IpAddr = IpAddr::V4(Ipv4Addr::new(1,1,1,1));
-    for iface in if_addrs::get_if_addrs().unwrap(){
-      if iface.is_link_local(){break;}
-      if iface.is_loopback(){break;}
-      if iface.addr.ip().is_ipv4() {
-        dev_ip = iface.addr.ip();
-        println!("My IP: {}", dev_ip);
-      }
-    }
-    let mut dev_ipv4:Ipv4Addr = Ipv4Addr::new(1, 1 , 1, 1);
+    tauri::Builder::default()
+        .invoke_handler(tauri::generate_handler![getnetwork])
+        .run(tauri::generate_context!())
+        .expect("error while running tauri application");
+}
+
+pub fn arpscan() {
+    let dev_ip = getip();
+    println!("My IP: {}", dev_ip);
+
+    let mut dev_ipv4: Ipv4Addr = Ipv4Addr::new(1, 1, 1, 1);
     match dev_ip {
         IpAddr::V4(ip) => dev_ipv4 = ip,
         IpAddr::V6(_) => {
-          println!("Something went wrong");
-        },
+            println!("Something went wrong");
+        }
     }
     match net_analyzer::scan(dev_ipv4) {
         Ok(devices) => {
@@ -54,11 +57,13 @@ fn main() {
         }
         Err(_) => todo!(),
     }
-    tauri::Builder::default()
-        .invoke_handler(tauri::generate_handler![hosts])
-        .run(tauri::generate_context!())
-        .expect("error while running tauri application");
 }
 
 #[tauri::command]
-async fn hosts() {}
+fn getnetwork() -> String {
+    println!("Function Called");
+    let ip = getip();
+    let pref = ipnetwork::ip_mask_to_prefix(getmask()).unwrap();
+    let net = format!("{ip}/{pref}");
+    return net;
+}

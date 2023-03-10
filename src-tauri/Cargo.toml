@@ -25,6 +25,11 @@ libsqlite3-sys = "0.25.2"
 platform-dirs = "0.3.0"
 system-info = "0.1.2"
 if-addrs = "0.10.1"
+yew = { version = "0.20.0", features = ["csr"] }
+wasm-bindgen = "0.2.84"
+wasm-bindgen-futures = "0.4.34"
+web-sys = "0.3.61"
+js-sys = "0.3.61"
 
 [dependencies.rusqlite]
 version = "0.28.0"

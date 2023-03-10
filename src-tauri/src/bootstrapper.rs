@@ -3,15 +3,18 @@
 
 use std::{fs::{File, create_dir}};
 use rusqlite::*;
-use tauri::api::path::data_dir;
 
 pub fn initialize_db(){
-    let path = platform_dirs::AppDirs::new(Option::Some("NetSecure"), false).unwrap();
+    let path = platform_dirs::AppDirs::new(Option::Some("NetSecure/data"), false).unwrap();
     let mut path = path.data_dir;
-    create_dir(&path);
+    match create_dir(&path){
+        Ok(_) => println!("dir made"),
+        Err(_) => println!("dir failed"),
+    }
+    
     path.push("data.db");
     match File::create(&path) {
-        Ok(f) => {
+        Ok(_) => {
             match Connection::open(path) {
                 Ok(conn) => {
                     conn.execute("

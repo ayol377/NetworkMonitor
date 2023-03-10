@@ -4,7 +4,6 @@
 // Imports
 use std::{net::{IpAddr, Ipv4Addr}};
 use serde_json::from_str;
-use tracert::{self, ping::{Pinger}};
 use ipnetwork::{self, Ipv4Network};
 use std::process::Command;
 use crate::structs::Device;
@@ -37,10 +36,10 @@ pub fn scan(dev_ip: Ipv4Addr) -> Result<Vec<Device>, String>{
             match String::from_utf8(o.stdout){
                 Ok(d) => {
                     let mut data = d.split_ascii_whitespace();
-                    for n in 0..9{
+                    for _ in 0..9{
                         data.next();
                     }
-                    while true {
+                    loop {
                         match data.next(){
                             Some(x1) => {
                                let mac = data.next().unwrap();
@@ -70,30 +69,38 @@ pub fn scan(dev_ip: Ipv4Addr) -> Result<Vec<Device>, String>{
         },
         Err(_) => println!("Error!"),
     }
-    // for dev in &devices{
-    //     println!("{} => {}", dev.ip(), dev.mac());
-    // }
+
     return Result::Ok(devices);
 }
 
 pub fn trace(dest_ip:IpAddr) -> Result<Vec<IpAddr>, String>{
-    let mut path_to_dest = vec![];
-    let ip_tracer:Result<tracert::trace::Tracer, String> = tracert::trace::Tracer::new(dest_ip);
-    match ip_tracer {
-        Ok(t) => {
-            println!("Tracer Setup Successfull");
-            let ip_trace:Result<tracert::trace::TraceResult, String> = t.trace();
-            match ip_trace{
-                
-                Ok(r) => {
-                    for ip_node in r.nodes {
-                        path_to_dest.push(ip_node.ip_addr);
-                    }
-                },
-                Err(e) => return Result::Err(e),
-            }
-        },
-        Err(e) => return Result::Err(e),
+    todo!();
+}
+
+pub fn getip() -> IpAddr {
+    let mut dev_ip:IpAddr = IpAddr::V4(Ipv4Addr::new(1,1,1,1));
+    for iface in if_addrs::get_if_addrs().unwrap(){
+      if iface.is_link_local(){break;}
+      if iface.is_loopback(){break;}
+      if iface.addr.ip().is_ipv4() {
+        dev_ip = iface.addr.ip();
+      }
     }
-    return Result::Ok(path_to_dest);
+    return dev_ip;
+}
+
+pub fn getmask() -> IpAddr {
+    let mut mask = Ipv4Addr::new(0, 0, 0, 0);
+    let ip = getip();
+    for iface in if_addrs::get_if_addrs().unwrap(){
+        if iface.addr.ip() == ip {
+          match iface.addr {
+            if_addrs::IfAddr::V4(ipv4) => {
+                mask = ipv4.netmask;
+            },
+            if_addrs::IfAddr::V6(_) => println!("Something went wrong!"),
+        }
+        }
+      }
+    return IpAddr::V4(mask);
 }
