@@ -31,10 +31,15 @@ fn main() {
         Err(_) => bootstrapper::initialize_db(),
     }
 
-    tauri::Builder::default()
+    let app = tauri::Builder::default()
+        // .setup(|app| {
+        //     todo!();
+        // })
         .invoke_handler(tauri::generate_handler![getnetwork])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
+
+    
 }
 
 pub fn arpscan() {
@@ -63,7 +68,8 @@ pub fn arpscan() {
 fn getnetwork() -> String {
     println!("Function Called");
     let ip = getip();
-    let pref = ipnetwork::ip_mask_to_prefix(getmask()).unwrap();
-    let net = format!("{ip}/{pref}");
-    return net;
+    let net = ipnetwork::IpNetwork::with_netmask(ip, getmask()).unwrap();
+    let ip = ipnetwork::IpNetwork::network(&net);
+    let net = ipnetwork::IpNetwork::with_netmask(ip, getmask()).unwrap();
+    return net.to_string();
 }

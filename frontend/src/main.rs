@@ -119,13 +119,13 @@ fn App() -> Html {
                     </li>
                 </ul>
                 <hr/>
-                <a class="d-flex flex-column align-items-start text-white text-decoration-none h-auto">
-                    <p class="text-white mb-0">{*net_status}{message}</p>
-                </a>
-            </div>
-            <div id="content" style="width:100%,height:100%">
+                    <a class="d-flex flex-column align-items-start text-white text-decoration-none h-auto">
+                        <p class="text-white mb-0">{*net_status}{message}</p>
+                    </a>
+                </div>
+                <div id="content" style="width:100%,height:100%">
 
-            </div>
+                </div>
         </main>
      }
 
