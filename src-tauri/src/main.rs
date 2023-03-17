@@ -6,11 +6,13 @@
     windows_subsystem = "windows"
 )]
 
+use database::get_devices;
+
 // Imports
 use crate::net_analyzer::*;
 use std::{
     fs::{File},
-    net::{IpAddr, Ipv4Addr},
+    net::{IpAddr, Ipv4Addr}, process::Command,
 };
 
 // Modules
@@ -31,11 +33,12 @@ fn main() {
         Err(_) => bootstrapper::initialize_db(),
     }
 
-    let app = tauri::Builder::default()
-        // .setup(|app| {
-        //     todo!();
-        // })
-        .invoke_handler(tauri::generate_handler![getnetwork])
+    arpscan();
+    pingnet();
+
+    tauri::Builder::default()
+        //.invoke_handler(tauri::generate_handler![getnetwork])
+        .invoke_handler(tauri::generate_handler![getdevs, getnetwork])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
 
@@ -53,7 +56,7 @@ pub fn arpscan() {
             println!("Something went wrong");
         }
     }
-    match net_analyzer::scan(dev_ipv4) {
+    match net_analyzer::scan() {
         Ok(devices) => {
             for device in devices {
                 println!("Adding device to database");
@@ -72,4 +75,24 @@ fn getnetwork() -> String {
     let ip = ipnetwork::IpNetwork::network(&net);
     let net = ipnetwork::IpNetwork::with_netmask(ip, getmask()).unwrap();
     return net.to_string();
+}
+
+#[tauri::command]
+fn getdevs() -> Vec<String> {
+    let devs = get_devices();
+    for mac in &devs {
+        println!("{}", mac);
+    }
+    return devs;
+}
+
+fn pingnet() {
+    let net = getnet();
+    let ip = net.broadcast();
+    let mut cmd = Command::new("ping");
+    cmd.arg(format!("{}", ip));
+    match cmd.status() {
+        Ok(_) => println!("OK"),
+        Err(_) => println!("Err"),
+    }
 }

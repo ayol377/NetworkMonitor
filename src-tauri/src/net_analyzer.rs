@@ -2,27 +2,21 @@
 //! 
 
 // Imports
-use std::{net::{IpAddr, Ipv4Addr}};
+use std::{net::{IpAddr, Ipv4Addr}, fmt::format};
 use serde_json::from_str;
 use ipnetwork::{self, Ipv4Network};
 use std::process::Command;
 use crate::structs::Device;
 
 // Constants
-const DEF_GATEWAY:Ipv4Addr = Ipv4Addr::new(192, 168, 1, 1);
-const NET_PREFIX:u8 = 8;
+// const DEF_GATEWAY:Ipv4Addr = Ipv4Addr::new(192, 168, 1, 1);
+// const NET_PREFIX:u8 = 8;
 
 
-pub fn scan(dev_ip: Ipv4Addr) -> Result<Vec<Device>, String>{
+pub fn scan() -> Result<Vec<Device>, String>{
     let mut devices:Vec<Device> = vec![];
-    let mut possible_hosts:Vec<Ipv4Addr> = vec![];
-
-
-    let local_net = Ipv4Network::new(DEF_GATEWAY, NET_PREFIX).unwrap();
-    let netsize = local_net.size() - 1;
-    for n in 0..netsize {
-        possible_hosts.push(local_net.nth(n).unwrap());
-    }
+    let dev_ip = getip();
+    let local_net = getnet();
 
     // Identify online hosts
     let mut cmd = Command::new("arp");
@@ -103,4 +97,18 @@ pub fn getmask() -> IpAddr {
         }
       }
     return IpAddr::V4(mask);
+}
+
+pub fn getnet() -> ipnetwork::Ipv4Network {
+    let ip = getip();
+    let net = ipnetwork::IpNetwork::with_netmask(ip, getmask()).unwrap();
+    let ip = ipnetwork::IpNetwork::network(&net);
+    let net = ipnetwork::IpNetwork::with_netmask(ip, getmask()).unwrap();
+    match net {
+        ipnetwork::IpNetwork::V4(network) => return network,
+        ipnetwork::IpNetwork::V6(_) => {
+            println!("Something whent wrong");
+            return ipnetwork::Ipv4Network::new(Ipv4Addr::new(0,0,0,0), 0).unwrap();
+        },
+    }
 }
