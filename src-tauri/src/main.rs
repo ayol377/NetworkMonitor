@@ -36,7 +36,6 @@ fn main() {
     }
 
     arpscan();
-    pingnet();
 
     tauri::Builder::default()
         //.invoke_handler(tauri::generate_handler![getnetwork])
@@ -48,6 +47,7 @@ fn main() {
 }
 
 pub fn arpscan() {
+    pingnet();
     let dev_ip = getip();
     println!("My IP: {}", dev_ip);
 

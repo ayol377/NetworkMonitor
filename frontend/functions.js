@@ -44,10 +44,10 @@ function devlistgen(){
         for (var i in macs) {
             var cont = macs[i];
             var idname = t.concat(cont);
-            var payload = "<li style='cursor:pointer;' class='list-group-item' id='dev_id' onclick= devicenavupdate('div_id')><div class='fw-bold'>Device Name</div>MAC: dev_mac <br> IP: 255.255.255.255 </li>"
+            var payload = "<li style='cursor:pointer;' class='list-group-item' id='dev_id' onclick= devicenavupdate('div_id')><div class='fw-bold'>Device Name <span class='badge bg-secondary'>Offline</span></div>MAC: dev_mac <br> IP: 255.255.255.255 </li>"
             payload = payload.replace("div_id", idname);
             payload = payload.replace("dev_id", idname);
-            payload = payload.replace("dev_mac", cont);
+            payload = payload.replace("dev_mac", cont.toUpperCase());
             html = html.concat(payload);
         }
         console.log(html);
