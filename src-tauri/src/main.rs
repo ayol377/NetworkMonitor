@@ -6,14 +6,15 @@
     windows_subsystem = "windows"
 )]
 
-use database::get_devices;
+use database::{get_devices, dev_state};
 
 // Imports
 use crate::net_analyzer::*;
 use std::{
     fs::{File},
-    net::{IpAddr, Ipv4Addr}, process::Command,
+    net::{IpAddr, Ipv4Addr}, process::Command, time::{self, Duration}, task::Poll, fmt::format,
 };
+use tokio::{self, time::sleep_until, macros::support::poll_fn};
 
 //test comment
 
@@ -23,19 +24,32 @@ mod database;
 mod net_analyzer;
 mod structs;
 
-fn main() {
+#[tokio::main]
+async fn main() {
     // Make sure database is available
-    let path = platform_dirs::AppDirs::new(Option::Some("NetSecure/data"), false).unwrap();
-    let mut path = path.data_dir;
-    path.push("data.db");
-    match File::open(path) {
-        Ok(_db) => {
-            println!("Database Available")
-        }
-        Err(_) => bootstrapper::initialize_db(),
-    }
+    // let path = platform_dirs::AppDirs::new(Option::Some("NetSecure/data"), false).unwrap();
+    // let mut path = path.data_dir;
+    // path.push("data.db");
+    // match File::open(path) {
+    //     Ok(_db) => {
+    //         println!("Database Available")
+    //     }
+    //     Err(_) => bootstrapper::initialize_db(),
+    // }
+    
+    // let path = platform_dirs::AppDirs::new(Option::Some("NetSecure/data"), false).unwrap();
+    // let mut path = path.data_dir;
+    // path.push("manufacturers.db");
+    // match File::open(path) {
+    //     Ok(_db) => {
+    //         println!("Database Available")
+    //     }
+    //     Err(_) => bootstrapper::initialize_db(),
+    // }
 
-    arpscan();
+
+    // bootstrapper::initialize_db();
+    tokio::task::spawn(async move {refreshcycle(5)});
 
     tauri::Builder::default()
         //.invoke_handler(tauri::generate_handler![getnetwork])
@@ -47,7 +61,6 @@ fn main() {
 }
 
 pub fn arpscan() {
-    pingnet();
     let dev_ip = getip();
     println!("My IP: {}", dev_ip);
 
@@ -80,21 +93,41 @@ fn getnetwork() -> String {
 }
 
 #[tauri::command]
-fn getdevs() -> Vec<String> {
+fn getdevs() -> Vec<Vec<String>> {
     let devs = get_devices();
-    for mac in &devs {
-        println!("{}", mac);
+    let mut return_devs: Vec<Vec<String>> = vec![];
+    let mut on_hosts: Vec<Vec<String>> = vec![];
+    let mut of_hosts: Vec<Vec<String>> = vec![];
+    for dev in &devs {
+        let mut newdev: Vec<String> = vec![];
+        newdev.push(dev.mac().to_string());
+        newdev.push(dev.ip().to_string());
+        if dev_state(dev.ip()){
+            newdev.push("up".to_string());
+            on_hosts.push(newdev);
+        }else{
+            newdev.push("down".to_string());
+            of_hosts.push(newdev);
+        }
     }
-    return devs;
+    for dev in on_hosts{
+        return_devs.push(dev);
+    }
+    for dev in of_hosts{
+        return_devs.push(dev);
+    }
+    return return_devs;
 }
+
 
 fn pingnet() {
     let net = getnet();
     let ip = net.broadcast();
-    let mut cmd = Command::new("ping");
-    cmd.arg(format!("{}", ip));
-    match cmd.status() {
-        Ok(_) => println!("OK"),
-        Err(_) => println!("Err"),
+    ping(ip);
+}
+
+fn refreshcycle(rate: u64){
+    loop {
+        pingscan()
     }
 }

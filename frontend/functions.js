@@ -37,17 +37,26 @@ function getipstr () {
 
 function devlistgen(){
     const t = "dev_";
-    invoke('getdevs').then((macs) =>{
+    invoke('getdevs').then((devices) =>{
         var list_div = document.getElementById("dev-list");
         list_div.innerHTML = '';
         var html = '';
-        for (var i in macs) {
-            var cont = macs[i];
-            var idname = t.concat(cont);
-            var payload = "<li style='cursor:pointer;' class='list-group-item' id='dev_id' onclick= devicenavupdate('div_id')><div class='fw-bold'>Device Name <span class='badge bg-secondary'>Offline</span></div>MAC: dev_mac <br> IP: 255.255.255.255 </li>"
+        for (var i in devices) {
+            console.log(devices);
+            var dev = devices[i];
+            var idname = t.concat(dev[0]);
+            var payload = "<li style='cursor:pointer;' class='list-group-item' id='dev_id' onclick= devicenavupdate('div_id')><div class='fw-bold'>Device Name <span class='badge bg_color '> status_text </span></div>MAC: dev_mac <br> IP: ip_addr </li>";
             payload = payload.replace("div_id", idname);
             payload = payload.replace("dev_id", idname);
-            payload = payload.replace("dev_mac", cont.toUpperCase());
+            payload = payload.replace("dev_mac", dev[0].toUpperCase());
+            payload = payload.replace("ip_addr", dev[1]);
+            if (dev[2] == "up") {
+                payload = payload.replace("bg_color", "bg-success");
+                payload = payload.replace("status_text", "Online");
+            }else{
+                payload = payload.replace("bg_color", "bg-secondary");
+                payload = payload.replace("status_text", "Offline");
+            }
             html = html.concat(payload);
         }
         console.log(html);
@@ -55,9 +64,10 @@ function devlistgen(){
     });
 }
 
-function refresh(){
-    invoke('arpscan');
-    devlistgen();
+async function refresh(){
+    while (true) {
+        devlistgen();
+    }
 }
 
 getipstr();
@@ -65,17 +75,6 @@ devlistgen();
 
 
 function devicenavupdate(idname){
-    // const t = "dev_";
-    // invoke('getdevs').then((macs) =>{
-    //     for (var i in macs) {
-    //         var cont = macs[i];
-    //         var idname2 = t.concat(cont);
-    //         var list_item = document.getElementById(idname2);
-    //         if (list_item.classList.contains("active")){
-    //             //list_item.classList.remove("active");
-    //         }
-    //     }
-    // })
     var deac_item = document.getElementsByClassName("list-group-item active");
     if (deac_item.item(0) != null){
         deac_item.item(0).classList.remove("active");
