@@ -7,53 +7,53 @@
 )]
 
 use database::{get_devices, dev_state};
-
-// Imports
+use security::security_coroutine;
 use crate::net_analyzer::*;
 use std::{
-    fs::{File},
-    net::{IpAddr, Ipv4Addr}, process::Command, time::{self, Duration}, task::Poll, fmt::format,
+    fs::{*, self},
+    net::{IpAddr, Ipv4Addr}, process::Command, time::{self, Duration}, task::Poll, fmt::format, ptr::eq,
 };
-use tokio::{self, time::sleep_until, macros::support::poll_fn};
+use tokio::{self};
+use serde::{Deserialize, Serialize};
 
-//test comment
-
-// Modules
 mod bootstrapper;
 mod database;
 mod net_analyzer;
 mod structs;
+mod security;
+
+#[derive(Deserialize)]
+#[derive(Serialize)]
+struct settings{
+    pub dns: bool,
+    pub mitm: bool,
+    pub eviltwin: bool,
+    pub cloudbackup: bool
+}
 
 #[tokio::main]
 async fn main() {
-    // Make sure database is available
-    // let path = platform_dirs::AppDirs::new(Option::Some("NetSecure/data"), false).unwrap();
-    // let mut path = path.data_dir;
-    // path.push("data.db");
-    // match File::open(path) {
-    //     Ok(_db) => {
-    //         println!("Database Available")
-    //     }
-    //     Err(_) => bootstrapper::initialize_db(),
-    // }
-    
-    // let path = platform_dirs::AppDirs::new(Option::Some("NetSecure/data"), false).unwrap();
-    // let mut path = path.data_dir;
-    // path.push("manufacturers.db");
-    // match File::open(path) {
-    //     Ok(_db) => {
-    //         println!("Database Available")
-    //     }
-    //     Err(_) => bootstrapper::initialize_db(),
-    // }
+
+    let mut settings_v:Vec<String> = vec![];
+
+    // Get Settings file. If unavailable bootstrap the app
+    let path = platform_dirs::AppDirs::new(Option::Some("NetSecure"), false).unwrap();
+    let mut path = path.data_dir;
+    path.push("settings.json");
+    match File::open(&path) {
+        Ok(_) => {
+           println!("OK!"); 
+        },
+        Err(_) => bootstrapper::strap(),
+    }
+    // bootstrapper::strap();
 
 
-    // bootstrapper::initialize_db();
-    tokio::task::spawn(async move {refreshcycle(5)});
-
+    tokio::task::spawn(async {pingscan(30).await});
+    // tokio::task::spawn(async {security_coroutine(30, dns, etv, mitm).await});
     tauri::Builder::default()
         //.invoke_handler(tauri::generate_handler![getnetwork])
-        .invoke_handler(tauri::generate_handler![getdevs, getnetwork])
+        .invoke_handler(tauri::generate_handler![getdevs, getnetwork, getdev, get_settings, update_setting])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
 
@@ -63,14 +63,6 @@ async fn main() {
 pub fn arpscan() {
     let dev_ip = getip();
     println!("My IP: {}", dev_ip);
-
-    let mut dev_ipv4: Ipv4Addr = Ipv4Addr::new(1, 1, 1, 1);
-    match dev_ip {
-        IpAddr::V4(ip) => dev_ipv4 = ip,
-        IpAddr::V6(_) => {
-            println!("Something went wrong");
-        }
-    }
     match net_analyzer::scan() {
         Ok(devices) => {
             for device in devices {
@@ -84,7 +76,6 @@ pub fn arpscan() {
 
 #[tauri::command]
 fn getnetwork() -> String {
-    println!("Function Called");
     let ip = getip();
     let net = ipnetwork::IpNetwork::with_netmask(ip, getmask()).unwrap();
     let ip = ipnetwork::IpNetwork::network(&net);
@@ -102,6 +93,7 @@ fn getdevs() -> Vec<Vec<String>> {
         let mut newdev: Vec<String> = vec![];
         newdev.push(dev.mac().to_string());
         newdev.push(dev.ip().to_string());
+        newdev.push(dev.hostname().to_string());
         if dev_state(dev.ip()){
             newdev.push("up".to_string());
             on_hosts.push(newdev);
@@ -119,15 +111,97 @@ fn getdevs() -> Vec<Vec<String>> {
     return return_devs;
 }
 
-
-fn pingnet() {
-    let net = getnet();
-    let ip = net.broadcast();
-    ping(ip);
+#[tauri::command]
+fn getdev(mac: String) -> Vec<String> {
+    let mut device:Vec<String> = vec![];
+    let devs = get_devices();
+    for dev in devs{
+        if dev.mac() == mac{
+            device.push(dev.hostname().to_string());
+            device.push(dev.ip().to_string());
+            device.push(dev.mac().to_string());
+            device.push(dev.manufacturer().to_string());
+        }
+    }
+    return device;
 }
 
-fn refreshcycle(rate: u64){
-    loop {
-        pingscan()
+#[tauri::command(rename_all = "snake_case")]
+fn get_settings() -> Vec<String> {
+    let mut sett_string = vec![];
+    let path = platform_dirs::AppDirs::new(Option::Some("NetSecure"), false).unwrap();
+    let mut path = path.data_dir;
+    path.push("settings.json");
+    let data = fs::read_to_string(&path).unwrap();
+    let data = data.as_str();
+    let sett: settings = serde_json::from_str(data).unwrap();
+    if sett.dns {
+        sett_string.push("1".to_string());
+    }else {
+        sett_string.push("0".to_string());
     }
+    if sett.mitm {
+        sett_string.push("1".to_string());
+    }else {
+        sett_string.push("0".to_string());
+    }
+    if sett.eviltwin {
+        sett_string.push("1".to_string());
+    }else {
+        sett_string.push("0".to_string());
+    }
+    if sett.cloudbackup {
+        sett_string.push("1".to_string());
+    }else {
+        sett_string.push("0".to_string());
+    }
+
+    return sett_string;
+}
+
+#[tauri::command(rename_all = "snake_case")]
+fn update_setting(setting: String){
+    let path = platform_dirs::AppDirs::new(Option::Some("NetSecure"), false).unwrap();
+    let mut path = path.data_dir;
+    path.push("settings.json");
+    let data = fs::read_to_string(&path).unwrap();
+    let data = data.as_str();
+    let mut sett: settings = serde_json::from_str(data).unwrap();
+    let setting = setting.as_str();
+
+    match setting {
+        "dns" => {
+            if sett.dns {
+                sett.dns = false;
+            }else{
+                sett.dns = true;
+            }
+        },
+        "mitm" => {
+            if sett.mitm {
+                sett.mitm = false;
+            }else{
+                sett.mitm = true;
+            }
+        },
+        "eviltwin" => {
+            if sett.eviltwin {
+                sett.eviltwin = false;
+            }else{
+                sett.eviltwin = true;
+            }
+        },
+        "cloudbackup" => {
+            if sett.cloudbackup {
+                sett.cloudbackup = false;
+            }else{
+                sett.cloudbackup = true;
+            }
+        },
+        &_ =>{
+            println!("Something whent wrong!");
+        }
+    }
+    let conf = serde_json::to_string_pretty(&sett).unwrap();
+    fs::write(path, conf).unwrap();
 }

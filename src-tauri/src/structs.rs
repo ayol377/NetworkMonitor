@@ -3,9 +3,12 @@
 
 use std::net::Ipv4Addr;
 
+use serde::Deserialize;
+
 
 pub struct Device {
     pub mac: String,
+    pub hostname: String,
     pub ip: Ipv4Addr,
     pub manufacturer: String,
     pub joindate: String,
@@ -23,6 +26,10 @@ impl Device {
 
     pub fn manufacturer(&self) -> &str{
         return self.manufacturer.as_str();
+    }
+
+    pub fn hostname(&self) -> &str{
+        return self.hostname.as_str();
     }
 
     pub fn joindate(&self) -> &str{

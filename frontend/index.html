@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 
-<link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha1/dist/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-GLhlTQ8iRABdZLl6O3oVMWSktQOp6b7In1Zl3/Jr59b6EGGoI1aFkw7cmDA6j6gD" crossorigin="anonymous">
-<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha1/dist/js/bootstrap.bundle.min.js" integrity="sha384-w76AqPfDkMBDXo30jS1Sgez6pr3x5MlQ1ZAGC+nuZB+EYdgRZgiwxhTBTkF7CXvN" crossorigin="anonymous"></script>
+<link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha2/dist/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-aFq/bzH65dt+w6FI2ooMVUpc+21e0SRygnTpmBvdBgSdnuTN7QbdgL+OapgHtvPp" crossorigin="anonymous">
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha2/dist/js/bootstrap.bundle.min.js" integrity="sha384-qKXV1j0HvMUeCBQ+QVp7JcfGl760yU08IQ+GpUo5hlbpg51QRiuqHAJz8+BrxE/N" crossorigin="anonymous"></script>
 <script src="./functions.js"></script>
 <script src="./refresh.js"></script>
 
@@ -44,15 +44,82 @@
               <p class="text-white mb-0" id="netinfo">255.255.255.255/64</p>
           </a>
         </div>
-        <div id="content" style="width:78%; height:100%; min-width: 0;" class="p-0 m-0 ">
-          <div id = "dashboard-div" class="row ps-2" style="width: 100%; height: 100%;">
-            <div class="col-1 pe-0 ps-0 bg-dark-subtle" style="width: 35%; height: 94.5%;">
+        <div id="content" style="width:78%; height:100%; min-width: 0; position: relative;" class="p-0 m-0 ">
+          <div id = "dashboard-div" class="row m-0" style="width: 100%; height: 100%; position: absolute; visibility: visible;">
+            <div class="col-1 pe-0 ps-0 bg-body-secondary" style="width: 35%; height: 100%;">
               <div class="ps-2 rounded-1"><span class="h3">Devices</span></div>
-              <div  class="pe-0 overflow-y-scroll" style="width: 100%; height: 100%;">
-                <ul class="list-group"  id="dev-list"></ul>
+              <div  class="pe-0 overflow-y-scroll" style="width: 100%; height: 94.5%;">
+                <ul class="list-group"  id="dev-list">
+                  <div class="d-flex justify-content-center mt-5">
+                    <div class="spinner-border" role="status">
+                      <span class="visually-hidden">Loading...</span>
+                    </div>
+                  </div>
+                </ul>
               </div>
             </div>
-            <div  class="col-sm" style="width: 25%; height: 100%;">
+            <div  class="col-sm bg-body-tertiary row m-0 p-0" style="width: 25%; height: 100%;">
+              <div class="col-1 pe-0 ps-0 bg-body-tertiary col-1 " style="width: 100%; height: 75%;">
+                <div class="justify-content-center d-flex h1 pb-4">Details</div>
+                <div class="ps-3">
+                  <div class="row me-0 fw-bold"><div class="col-1" style="width: 35%;">DEVICE : </div><div class="col" id="dev_name">-</div></div>
+                  <div class="row me-0"><div class="col-1" style="width: 35%;">IP : </div><div class="col" id="ip_add">-</div></div>
+                  <div class="row me-0"><div class="col-1" style="width: 35%;">MAC : </div><div class="col text-capitalize" id="mac_add">-</div></div>
+                  <div class="row me-0"><div class="col-1" style="width: 35%;">MANUFACTURER : </div><div class="col" id="man_name">-</div></div>
+                </div>
+              </div>
+              
+              <div class="col-1 pe-0 ps-0 bg-body col-2" style="width: 100%; height: 25%;">
+                <div  class="pe-0 overflow-y-scroll" style="width: 100%; height: 100%;">
+                  <ul class="list-group"  id="notifications">
+
+                  </ul>
+                </div>
+              </div>
+            </div>
+          </div>
+          <div id = "security-div" class="row m-0 bg-body-secondary overflow-y-scroll d-flex" style="width: 100%; height: 100%; position: absolute; visibility: hidden;">
+            <div class="row">
+              <div class="col d-flex">
+                <div class="col-5 m-3 bg-body rounded-3">
+                  <img src="./placeholder.jpg" class="card-img-top rounded-top-3" alt="...">
+                  <div class="card-body p-3">
+                    <h5 class="card-title">DNS Masquerade</h5>
+                    <p class="card-text">Check for DNS Masquerading attacks on your device</p>
+                    <a href="#" class="btn btn-primary mt-4" id="DNS-BTN" onclick="updateSettings('dns')">Enable</a>
+                  </div>
+                </div>
+
+                <div class="col-5 m-3 bg-body rounded-3">
+                  <img src="./placeholder.jpg" class="card-img-top rounded-top-3" alt="...">
+                  <div class="card-body p-3">
+                    <h5 class="card-title">MITM</h5>
+                    <p class="card-text">Check for MITM attacks on your device</p>
+                    <a href="#" class="btn btn-primary mt-4" id="MIT-BTN" onclick="updateSettings('mitm')">Enable</a>
+                  </div>
+                </div>
+              </div>
+            </div>
+            <div class="row">
+              <div class="col d-flex">
+                <div class="col-5 m-3 bg-body rounded-3">
+                  <img src="./placeholder.jpg" class="card-img-top rounded-top-3" alt="...">
+                  <div class="card-body p-3">
+                    <h5 class="card-title">Evil Twin</h5>
+                    <p class="card-text">Check for Evil twins on your network</p>
+                    <a href="#" class="btn btn-primary mt-4" id="EVT-BTN" onclick="updateSettings('eviltwin')">Enable</a>
+                  </div>
+                </div>
+
+                <div class="col-5 m-3 bg-body rounded-3">
+                  <img src="./placeholder.jpg" class="card-img-top rounded-top-3" alt="...">
+                  <div class="card-body p-3">
+                    <h5 class="card-title">Cloud Backup</h5>
+                    <p class="card-text">Backup data to cloud</p>
+                    <a href="#" class="btn btn-primary mt-4" id="CLD-BTN" onclick="updateSettings('cloudbackup')">Enable</a>
+                  </div>
+                </div>
+              </div>
             </div>
           </div>
         </div>

@@ -2,9 +2,9 @@
 //!
 
 use std::net::Ipv4Addr;
-
 use rusqlite::{self, Connection};
-
+use mac_oui::Oui;
+use time::{self, OffsetDateTime, format_description};
 use crate::{structs::Device, net_analyzer::str_to_ip};
 
 pub fn add_device(dev: Device) {
@@ -19,6 +19,7 @@ pub fn add_device(dev: Device) {
                 .query_map([], |row| {
                     Ok(Device {
                         mac: row.get(0).unwrap(),
+                        hostname: row.get(1).unwrap(),
                         ip: Ipv4Addr::new(1, 1, 1, 1),
                         manufacturer: "UNKNOWN".to_string(),
                         joindate: "UNKNOWN".to_string(),
@@ -27,17 +28,27 @@ pub fn add_device(dev: Device) {
                 .unwrap();
             match q_result.next() {
                 Some(_) => {
-                    println!("Entry Exists!");
-                    return;
+                    let query = format!(
+                        "UPDATE devices SET ip_add = '{}' WHERE mac = '{}'",
+                        dev.ip(),
+                        dev.mac()
+                    );
+                    conn.execute(query.as_str(), ()).unwrap();
                 }
                 None => {
                     let query = format!(
-                        "INSERT INTO devices (mac, ip_add, manufacturer) VALUES ('{}', '{}', '{}')",
+                        "INSERT INTO devices (mac, ip_add, manufacturer, hostname) VALUES ('{}', '{}', '{}', '{}')",
                         dev.mac(),
                         dev.ip(),
-                        dev.manufacturer()
+                        dev.manufacturer(),
+                        dev.hostname()
                     );
                     conn.execute(query.as_str(), ()).unwrap();
+                    let desc = format!("New device ( {} | {} | {} ) has joined the network", dev.hostname(), dev.mac(), dev.ip());
+                    let current_time: OffsetDateTime = OffsetDateTime::now_local().unwrap();
+                    let time = format!("{}", current_time.format(&format_description::parse("[hour]-[minute]-[second]").unwrap()).unwrap());
+                    let date = format!("{}", current_time.format(&format_description::parse("[year]-[month]-[day]").unwrap()).unwrap());
+                    alert( time, date, desc, "info".to_string());
                 }
             }
         }
@@ -58,8 +69,9 @@ pub fn get_devices() -> Vec<Device> {
                 .query_map([], |row| {
                     Ok(Device{
                         mac: row.get(0).unwrap(),
-                        ip: str_to_ip(row.get(1).unwrap()),
-                        manufacturer: "NULL".to_string(),
+                        hostname: row.get(1).unwrap(),
+                        ip: str_to_ip(row.get(2).unwrap()),
+                        manufacturer: row.get(3).unwrap(),
                         joindate: "NULL".to_string(),
                     })
                 })
@@ -73,10 +85,27 @@ pub fn get_devices() -> Vec<Device> {
     return all_devs;
 }
 
-pub fn mf_lookup (mac: String){
+pub fn mf_lookup (mac: String) -> String{
+    let oui_db = Oui::default().unwrap();
+    let entry_op = oui_db.lookup_by_mac(&mac).unwrap();
+    match entry_op {
+        Some(entry) => return entry.company_name.to_owned(),
+        None => return  "UNKNOWN".to_string(),
+    }
+}
+
+pub fn alert(time: String, date:String, desc: String, level: String){
     let path = platform_dirs::AppDirs::new(Option::Some("NetSecure/data"), false).unwrap();
     let mut path = path.data_dir;
-    path.push("data.db");
+    path.push("alerts.db");
+    match Connection::open(path) {
+        Ok(conn) => {
+            let query = format!("INSERT INTO alerts (time, date, level, desc) VALUES ('{}', '{}', '{}', '{}')",
+            time, date, level, desc,);
+            conn.execute(&query, ()).unwrap();
+        }
+        Err(_) => println!("Error opening DB!"),
+    }
 }
 
 pub fn is_up (state: bool, ip: Ipv4Addr){
@@ -97,7 +126,7 @@ pub fn is_up (state: bool, ip: Ipv4Addr){
     }
 }
 
-struct devstate {
+struct Devstate {
     pub ip: String,
     pub state: String,
 }
@@ -112,7 +141,7 @@ pub fn dev_state(ip: Ipv4Addr) -> bool {
             let mut query = conn.prepare(&query.as_str()).unwrap();
             let q_result = query
                 .query_map([], |row| {
-                    Ok(devstate{
+                    Ok(Devstate{
                         ip: ip.to_string(),
                         state: row.get(0).unwrap(),
                     })

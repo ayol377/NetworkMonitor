@@ -1,5 +1,7 @@
 const { invoke } = window.__TAURI__.tauri;
 
+var selected_dev = "";
+
 function navchange (id) {
     document.getElementById("dash-nav").classList.remove("active");
     document.getElementById("net-nav").classList.remove("active");
@@ -9,19 +11,23 @@ function navchange (id) {
 
     switch (id) {
         case "dash-nav":
-            document.getElementById("dashboard-div").style.visibility="initial";
+            document.getElementById("dashboard-div").style.visibility="visible";
+            document.getElementById("security-div").style.visibility="hidden";
             break;
         
         case "net-nav":
             document.getElementById("dashboard-div").style.visibility="hidden";
+            document.getElementById("security-div").style.visibility="hidden";
             break;
 
         case "sec-nav":
             document.getElementById("dashboard-div").style.visibility="hidden";
+            document.getElementById("security-div").style.visibility="visible";
             break;
 
         case "set-nav":
             document.getElementById("dashboard-div").style.visibility="hidden";
+            document.getElementById("security-div").style.visibility="hidden";
             break;
 
         default:
@@ -39,28 +45,36 @@ function devlistgen(){
     const t = "dev_";
     invoke('getdevs').then((devices) =>{
         var list_div = document.getElementById("dev-list");
-        list_div.innerHTML = '';
         var html = '';
         for (var i in devices) {
-            console.log(devices);
             var dev = devices[i];
             var idname = t.concat(dev[0]);
-            var payload = "<li style='cursor:pointer;' class='list-group-item' id='dev_id' onclick= devicenavupdate('div_id')><div class='fw-bold'>Device Name <span class='badge bg_color '> status_text </span></div>MAC: dev_mac <br> IP: ip_addr </li>";
+            var payload = "<li style='cursor:pointer;' class='list-group-item act_p' id='dev_id' onclick= devicenavupdate('div_id')><div class='fw-bold'>Device_Name <span class='badge bg_color '> status_text </span></div>MAC: dev_mac <br> IP: ip_addr </li>";
             payload = payload.replace("div_id", idname);
             payload = payload.replace("dev_id", idname);
             payload = payload.replace("dev_mac", dev[0].toUpperCase());
             payload = payload.replace("ip_addr", dev[1]);
-            if (dev[2] == "up") {
+            if (dev[3] == "up") {
                 payload = payload.replace("bg_color", "bg-success");
                 payload = payload.replace("status_text", "Online");
             }else{
                 payload = payload.replace("bg_color", "bg-secondary");
                 payload = payload.replace("status_text", "Offline");
             }
+            if (selected_dev == dev[0]){
+                console.log(dev[1], "is selected. setting as active");
+                payload = payload.replace("act_p", "active");
+            }else{
+                payload = payload.replace("act_p", "");
+            }
+            payload = payload.replace("Device_Name", dev[2]);
+
             html = html.concat(payload);
         }
-        console.log(html);
-        list_div.innerHTML = html;
+        console.log("updated!");
+        if (html != ""){
+            list_div.innerHTML = html;
+        }
     });
 }
 
@@ -70,10 +84,6 @@ async function refresh(){
     }
 }
 
-getipstr();
-devlistgen();
-
-
 function devicenavupdate(idname){
     var deac_item = document.getElementsByClassName("list-group-item active");
     if (deac_item.item(0) != null){
@@ -81,5 +91,78 @@ function devicenavupdate(idname){
     }
     var act_item = document.getElementById(idname);
     act_item.classList.add("active");
+    selected_dev = idname.replace("dev_", "");
+    console.log(selected_dev, "set as dev selected!");
+    var mac = idname.replace("dev_", "");
+    setDetails(mac);
     console.log("updated!");
 }
+
+function setDetails(mac){
+    var devName = document.getElementById("dev_name");
+    var ipAdd = document.getElementById("ip_add");
+    var MacAdd = document.getElementById("mac_add");
+    var manf = document.getElementById("man_name");
+    invoke('getdev', { mac: mac }).then((dev) => {
+        devName.innerHTML = dev[0];
+        ipAdd.innerHTML = dev[1];
+        MacAdd.innerHTML = dev[2];
+        manf.innerHTML = dev[3];
+    });
+}
+
+function updateSettings(setting){
+    invoke('update_setting', {setting: setting});
+    console.log(setting);
+    setTimeout(settings, 1000);
+}
+
+function settings(){
+    var dns_btn = document.getElementById("DNS-BTN");
+    var mit_btn = document.getElementById("MIT-BTN");
+    var evt_btn = document.getElementById("EVT-BTN");
+    var cld_btn = document.getElementById("CLD-BTN");
+    invoke('get_settings').then((settings) => {
+        console.log(settings);
+        if (settings[0] == "1"){
+            dns_btn.innerHTML = "Disable";
+            dns_btn.classList.remove("btn-primary");
+            dns_btn.classList.add("btn-danger");
+        }else{
+            dns_btn.innerHTML = "Enable";
+            dns_btn.classList.add("btn-primary");
+            dns_btn.classList.remove("btn-danger");
+        }
+        if (settings[1] == "1"){
+            mit_btn.innerHTML = "Disable";
+            mit_btn.classList.remove("btn-primary");
+            mit_btn.classList.add("btn-danger");
+        }else{
+            mit_btn.innerHTML = "Enable";
+            mit_btn.classList.add("btn-primary");
+            mit_btn.classList.remove("btn-danger");
+        }
+        if (settings[2] == "1"){
+            evt_btn.innerHTML = "Disable";
+            evt_btn.classList.remove("btn-primary");
+            evt_btn.classList.add("btn-danger");
+        }else{
+            evt_btn.innerHTML = "Enable";
+            evt_btn.classList.add("btn-primary");
+            evt_btn.classList.remove("btn-danger");
+        }
+        if (settings[3] == "1"){
+            cld_btn.innerHTML = "Disable";
+            cld_btn.classList.remove("btn-primary");
+            cld_btn.classList.add("btn-danger");
+        }else{
+            cld_btn.innerHTML = "Enable";
+            cld_btn.classList.add("btn-primary");
+            cld_btn.classList.remove("btn-danger");
+        }
+    });
+}
+
+setTimeout(settings, 1000);
+getipstr();
+setInterval(devlistgen, 5000);
