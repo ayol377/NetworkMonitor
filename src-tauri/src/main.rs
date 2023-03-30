@@ -48,7 +48,7 @@ async fn main() {
     }
     // bootstrapper::strap();
 
-
+    
     tokio::task::spawn(async {pingscan(30).await});
     // tokio::task::spawn(async {security_coroutine(30, dns, etv, mitm).await});
     tauri::Builder::default()

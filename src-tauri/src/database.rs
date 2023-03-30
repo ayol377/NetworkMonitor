@@ -13,13 +13,14 @@ pub fn add_device(dev: Device) {
     path.push("data.db");
     match Connection::open(path) {
         Ok(conn) => {
-            let query = format!("SELECT mac FROM devices WHERE mac LIKE '{}'", dev.mac());
+            let query = format!("SELECT mac FROM devices WHERE mac = '{}'", dev.mac());
             let mut query = conn.prepare(&query.as_str()).unwrap();
+            unsafe{
             let mut q_result = query
                 .query_map([], |row| {
                     Ok(Device {
                         mac: row.get(0).unwrap(),
-                        hostname: row.get(1).unwrap(),
+                        hostname: "UNKNOWN".to_string(),
                         ip: Ipv4Addr::new(1, 1, 1, 1),
                         manufacturer: "UNKNOWN".to_string(),
                         joindate: "UNKNOWN".to_string(),
@@ -50,6 +51,7 @@ pub fn add_device(dev: Device) {
                     let date = format!("{}", current_time.format(&format_description::parse("[year]-[month]-[day]").unwrap()).unwrap());
                     alert( time, date, desc, "info".to_string());
                 }
+            }
             }
         }
         Err(_) => println!("Error opening DB!"),
