@@ -6,7 +6,7 @@
     windows_subsystem = "windows"
 )]
 
-use database::{get_devices, dev_state};
+use database::{get_devices, dev_state, get_alerts};
 use security::security_coroutine;
 use crate::net_analyzer::*;
 use std::{
@@ -53,7 +53,7 @@ async fn main() {
     // tokio::task::spawn(async {security_coroutine(30, dns, etv, mitm).await});
     tauri::Builder::default()
         //.invoke_handler(tauri::generate_handler![getnetwork])
-        .invoke_handler(tauri::generate_handler![getdevs, getnetwork, getdev, get_settings, update_setting])
+        .invoke_handler(tauri::generate_handler![getdevs, getnetwork, getdev, get_settings, update_setting, get_alert_list])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
 
@@ -204,4 +204,22 @@ fn update_setting(setting: String){
     }
     let conf = serde_json::to_string_pretty(&sett).unwrap();
     fs::write(path, conf).unwrap();
+}
+
+pub struct Alert{
+    pub time: String,
+    pub date: String,
+    pub level: String,
+    pub desc: String,
+}
+
+#[tauri::command(rename_all = "snake_case")]
+fn get_alert_list() -> Vec<Vec<String>> {
+    let mut alerts_v = vec![];
+    let alerts = get_alerts();
+    for alert in alerts{
+        let t:Vec<String> = vec![alert.time, alert.date, alert.level, alert.desc];
+        alerts_v.push(t);
+    }
+    return alerts_v;
 }

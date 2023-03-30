@@ -163,6 +163,24 @@ function settings(){
     });
 }
 
+function alert_gen(){
+    invoke('get_alert_list',).then((alerts) => {
+        var html = "";
+        for (i in alerts){
+            alert = alerts[i];
+            var payload = '<div class="alert alert-type m-0" role="alert">time date desc</div>';
+            payload = payload.replace("type", alert[2]);
+            payload = payload.replace("time", alert[0]);
+            payload = payload.replace("date", alert[1]);
+            payload = payload.replace("desc", alert[3]);
+            var html = html.concat(payload);
+        }
+        var list = document.getElementById("notifications");
+        list.innerHTML = html;
+    });
+}
+
+setInterval(alert_gen, 5000);
 setTimeout(settings, 1000);
 getipstr();
 setInterval(devlistgen, 5000);

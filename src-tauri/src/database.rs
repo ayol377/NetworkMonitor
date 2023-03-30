@@ -160,3 +160,38 @@ pub fn dev_state(ip: Ipv4Addr) -> bool {
     }
     return false;
 }
+
+pub struct Alert{
+    pub time: String,
+    pub date: String,
+    pub level: String,
+    pub desc: String,
+}
+
+pub fn get_alerts() -> Vec<Alert> {
+    let path = platform_dirs::AppDirs::new(Option::Some("NetSecure/data"), false).unwrap();
+    let mut path = path.data_dir;
+    path.push("alerts.db");
+    let mut all_alerts: Vec<Alert> = vec![];
+    match Connection::open(path) {
+        Ok(conn) => {
+            let query = format!("SELECT * FROM alerts");
+            let mut query = conn.prepare(&query.as_str()).unwrap();
+            let q_result = query
+                .query_map([], |row| {
+                    Ok(Alert{
+                        time: row.get(0).unwrap(),
+                        date: row.get(1).unwrap(),
+                        level: row.get(2).unwrap(),
+                        desc: row.get(3).unwrap(),
+                    })
+                })
+                .unwrap();
+            for alert in q_result {
+                all_alerts.push(alert.unwrap());
+            }
+        }
+        Err(_) => println!("Error opening DB!"),
+    }
+    return all_alerts;
+}
