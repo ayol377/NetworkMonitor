@@ -35,6 +35,7 @@ futures = "0.3.27"
 dns-lookup = "1.0.8"
 mac_oui = { version = "0.4.7", features = ["with-db"] }
 time = { version = "0.3.20", features = ["local-offset", "formatting"] }
+indicatif = "0.17.3"
 
 [dependencies.rusqlite]
 version = "0.28.0"

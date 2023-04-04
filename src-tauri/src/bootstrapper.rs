@@ -24,35 +24,10 @@ pub fn strap(){
                         mac TEXT NOT NULL PRIMARY KEY,
                         hostname TEXT,
                         ip_add TEXT,
-                        manufacturer TEXT
+                        manufacturer TEXT,
+                        joindate TEXT
                         )
                     ", ()).unwrap();
-                }
-                Err(_) => print!("Error Adding Table!"),
-            }
-        },
-        Err(e) => println!("Error making DB => {}", e),
-    }
-    let path = platform_dirs::AppDirs::new(Option::Some("NetSecure/data"), false).unwrap();
-    let mut path = path.data_dir;
-    path.push("device_states.db");
-    match File::create(&path) {
-        Ok(_) => {
-            match Connection::open(path) {
-                Ok(conn) => {
-                    conn.execute("
-                        CREATE TABLE devices (
-                        ip_add TEXT,
-                        state TEXT
-                        )
-                    ", ()).unwrap();
-
-                    let network = getnet();
-
-                    for ip in network.iter() {
-                        let sql = format!("INSERT INTO devices (ip_add, state) VALUES ('{}', 'down')", ip);
-                        conn.execute(&sql, ()).unwrap();
-                    }
                 }
                 Err(_) => print!("Error Adding Table!"),
             }

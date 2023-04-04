@@ -7,11 +7,11 @@
 )]
 
 use database::{get_devices, dev_state, get_alerts};
-use security::security_coroutine;
 use crate::net_analyzer::*;
 use std::{
     fs::{*, self},
-    net::{IpAddr, Ipv4Addr}, process::Command, time::{self, Duration}, task::Poll, fmt::format, ptr::eq,
+    sync::{Arc, Mutex},
+    net::{IpAddr, Ipv4Addr}, process::Command, time::{self, Duration}, task::Poll, fmt::format, ptr::eq, vec,
 };
 use tokio::{self};
 use serde::{Deserialize, Serialize};
@@ -22,6 +22,7 @@ mod net_analyzer;
 mod structs;
 mod security;
 
+
 #[derive(Deserialize)]
 #[derive(Serialize)]
 struct settings{
@@ -30,6 +31,8 @@ struct settings{
     pub eviltwin: bool,
     pub cloudbackup: bool
 }
+
+static mut UP_DEVS: Vec<Ipv4Addr> = vec![];
 
 #[tokio::main]
 async fn main() {
@@ -48,8 +51,8 @@ async fn main() {
     }
     // bootstrapper::strap();
 
-
-    tokio::task::spawn(async {pingscan(30).await});
+    unsafe {let pusher = |a| UP_DEVS.push(a);}
+    unsafe{ tokio::task::spawn(async {pingscan(30).await}); }
     // tokio::task::spawn(async {security_coroutine(30, dns, etv, mitm).await});
     tauri::Builder::default()
         //.invoke_handler(tauri::generate_handler![getnetwork])
@@ -94,13 +97,24 @@ fn getdevs() -> Vec<Vec<String>> {
         newdev.push(dev.mac().to_string());
         newdev.push(dev.ip().to_string());
         newdev.push(dev.hostname().to_string());
-        if dev_state(dev.ip()){
-            newdev.push("up".to_string());
-            on_hosts.push(newdev);
-        }else{
-            newdev.push("down".to_string());
-            of_hosts.push(newdev);
-        }
+
+        unsafe { 
+            let r_up_devs = UP_DEVS.clone();
+            if r_up_devs.contains(&dev.ip()){
+                newdev.push("up".to_string());
+                on_hosts.push(newdev);
+            }else{
+                newdev.push("down".to_string());
+                of_hosts.push(newdev);
+            }
+        }    
+        // if dev_state(dev.ip()){
+        //     newdev.push("up".to_string());
+        //     on_hosts.push(newdev);
+        // }else{
+        //     newdev.push("down".to_string());
+        //     of_hosts.push(newdev);
+        // }
     }
     for dev in on_hosts{
         return_devs.push(dev);

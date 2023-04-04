@@ -1,13 +1,17 @@
 //!
 //!
 
-use std::net::Ipv4Addr;
+use std::net::{Ipv4Addr, IpAddr};
+use dns_lookup::lookup_addr;
 use rusqlite::{self, Connection};
 use mac_oui::Oui;
 use time::{self, OffsetDateTime, format_description};
 use crate::{structs::Device, net_analyzer::str_to_ip};
 
 pub fn add_device(dev: Device) {
+    let current_time: OffsetDateTime = OffsetDateTime::now_local().unwrap();
+    let time = format!("{}", current_time.format(&format_description::parse("[hour]-[minute]-[second]").unwrap()).unwrap());
+    let date = format!("{}", current_time.format(&format_description::parse("[year]-[month]-[day]").unwrap()).unwrap());
     let path = platform_dirs::AppDirs::new(Option::Some("NetSecure/data"), false).unwrap();
     let mut path = path.data_dir;
     path.push("data.db");
@@ -19,10 +23,10 @@ pub fn add_device(dev: Device) {
                 .query_map([], |row| {
                     Ok(Device {
                         mac: row.get(0).unwrap(),
-                        hostname: row.get(1).unwrap(),
+                        hostname: "DUMMY".to_string(),
                         ip: Ipv4Addr::new(1, 1, 1, 1),
-                        manufacturer: "UNKNOWN".to_string(),
-                        joindate: "UNKNOWN".to_string(),
+                        manufacturer: "DUMMY".to_string(),
+                        joindate: "DUMMY".to_string(),
                     })
                 })
                 .unwrap();
@@ -36,18 +40,17 @@ pub fn add_device(dev: Device) {
                     conn.execute(query.as_str(), ()).unwrap();
                 }
                 None => {
+                    let ip:IpAddr = IpAddr::V4(dev.ip());
                     let query = format!(
-                        "INSERT INTO devices (mac, ip_add, manufacturer, hostname) VALUES ('{}', '{}', '{}', '{}')",
+                        "INSERT INTO devices (mac, ip_add, manufacturer, hostname, joindate) VALUES ('{}', '{}', '{}', '{}', '{}')",
                         dev.mac(),
                         dev.ip(),
-                        dev.manufacturer(),
-                        dev.hostname()
+                        mf_lookup(dev.mac().to_string()),
+                        lookup_addr(&ip).unwrap(),
+                        format!("{} {}", time, date),
                     );
                     conn.execute(query.as_str(), ()).unwrap();
-                    let desc = format!("New device ( {} | {} | {} ) has joined the network", dev.hostname(), dev.mac(), dev.ip());
-                    let current_time: OffsetDateTime = OffsetDateTime::now_local().unwrap();
-                    let time = format!("{}", current_time.format(&format_description::parse("[hour]-[minute]-[second]").unwrap()).unwrap());
-                    let date = format!("{}", current_time.format(&format_description::parse("[year]-[month]-[day]").unwrap()).unwrap());
+                    let desc = format!("New device ( {} | {} | {} ) found on network", dev.hostname(), dev.mac(), dev.ip());
                     alert( time, date, desc, "info".to_string());
                 }
             }

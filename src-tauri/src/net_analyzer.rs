@@ -3,14 +3,15 @@
 
 
 // Imports
-use std::{net::{IpAddr, Ipv4Addr}, os::windows::process::CommandExt, thread, time::Duration};
+use std::{net::{IpAddr, Ipv4Addr}, os::windows::process::CommandExt, thread, time::Duration, sync::{Arc, Mutex}};
 use futures::future;
 use serde_json::from_str;
 use ipnetwork::{self};
 use system_info::HostName;
 use tokio::process::Command;
-use crate::{structs::Device, database::{is_up, add_device, mf_lookup}};
+use crate::{structs::Device, database::{is_up, add_device, mf_lookup, dev_state}};
 use dns_lookup::{self, lookup_addr};
+use crate::UP_DEVS;
 
 // Constants
 const DETACHED_PROCESS: u32 = 0x00000008;
@@ -47,12 +48,12 @@ pub fn scan() -> Result<Vec<Device>, String>{
                                 let ip = str_to_ip(x1.to_string());
                                 if local_net.contains(ip){
                                     let hostip = IpAddr::V4(ip);
-                                    let mut hostname = lookup_addr(&hostip).unwrap();
-                                    if hostname == format!("{}", ip){
-                                        hostname = "Unnamed".to_string();
-                                    }
-                                    let manufacturer = mf_lookup(mac.to_string());
-                                    let new_dev:Device = Device{mac: mac.to_string(), ip, manufacturer, joindate: "UNKNOWN".to_string(), hostname};
+                                    // let mut hostname = lookup_addr(&hostip).unwrap();
+                                    // if hostname == format!("{}", ip){
+                                    //     hostname = "Unnamed".to_string();
+                                    // }
+                                    // let manufacturer = mf_lookup(mac.to_string());
+                                    let new_dev:Device = Device{mac: mac.to_string(), ip, manufacturer: "DUMMY".to_string(), joindate: "DUMMY".to_string(), hostname: "DUMMY".to_string()};
                                     // println!("IP: {} => Mac: {}", new_dev.ip(), new_dev.mac());
                                     if new_dev.mac() != "ff-ff-ff-ff-ff-ff"{
                                         devices.push(new_dev);
@@ -159,26 +160,43 @@ pub async fn ping_check(ip: Ipv4Addr) -> bool{
 
 pub async fn pingscan(rate: u64){
     loop {
+        unsafe{UP_DEVS.clear();}
         let network = getnet();
         let mut pingtasks = Vec::new();
         for ip in network.iter() {
             let pingtask = tokio::task::spawn(async move {
-                println!("pinging {}", ip);
+                // println!("pinging {}", ip);
                 let status = ping_check(ip).await;
                 if status {
                     println!("{} is up!", ip);
-                    is_up(true, ip);
+                    unsafe {UP_DEVS.push(ip);}
+                    
                 }else{
-                    is_up(false, ip);
+                    // println!("{} is down!", ip);
                 }
                 });
             pingtasks.push(pingtask);
         }
         let devs = scan().unwrap();
         for dev in devs{
+            let ip:IpAddr = IpAddr::V4(dev.ip());
+            let newdev = Device{
+                mac: dev.mac().to_string(),
+                hostname: lookup_addr(&ip).unwrap(),
+                ip: dev.ip(),
+                manufacturer: mf_lookup(dev.mac().to_string()),
+                joindate: dev.joindate().to_string(),
+            };
             println!("Adding device to database");
             add_device(dev);
         }
+        println!("~~~~~UP DEVICES~~~~~");
+        unsafe{
+            for dev in &UP_DEVS{
+                println!("{}", dev);
+            }
+        }
+        println!("~~~~~~~~~~~~~~~~~~~~");
         future::join_all(pingtasks).await;
         println!("all pinged, now waiting!");
         thread::sleep(Duration::from_secs(rate));
