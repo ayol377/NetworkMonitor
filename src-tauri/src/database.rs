@@ -19,7 +19,6 @@ pub fn add_device(dev: Device) {
         Ok(conn) => {
             let query = format!("SELECT mac FROM devices WHERE mac = '{}'", dev.mac());
             let mut query = conn.prepare(&query.as_str()).unwrap();
-            unsafe{
             let mut q_result = query
                 .query_map([], |row| {
                     Ok(Device {
@@ -42,19 +41,19 @@ pub fn add_device(dev: Device) {
                 }
                 None => {
                     let ip:IpAddr = IpAddr::V4(dev.ip());
+                    let hname = lookup_addr(&ip).unwrap();
                     let query = format!(
                         "INSERT INTO devices (mac, ip_add, manufacturer, hostname, joindate) VALUES ('{}', '{}', '{}', '{}', '{}')",
                         dev.mac(),
                         dev.ip(),
                         mf_lookup(dev.mac().to_string()),
-                        lookup_addr(&ip).unwrap(),
+                        hname,
                         format!("{} {}", time, date),
                     );
                     conn.execute(query.as_str(), ()).unwrap();
-                    let desc = format!("New device ( {} | {} | {} ) found on network", dev.hostname(), dev.mac(), dev.ip());
+                    let desc = format!("New device ( {} | {} | {} ) found on network", hname, dev.mac(), dev.ip());
                     alert( time, date, desc, "info".to_string());
                 }
-            }
             }
         }
         Err(_) => println!("Error opening DB!"),
