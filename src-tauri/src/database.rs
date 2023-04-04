@@ -17,8 +17,9 @@ pub fn add_device(dev: Device) {
     path.push("data.db");
     match Connection::open(path) {
         Ok(conn) => {
-            let query = format!("SELECT mac FROM devices WHERE mac LIKE '{}'", dev.mac());
+            let query = format!("SELECT mac FROM devices WHERE mac = '{}'", dev.mac());
             let mut query = conn.prepare(&query.as_str()).unwrap();
+            unsafe{
             let mut q_result = query
                 .query_map([], |row| {
                     Ok(Device {
@@ -53,6 +54,7 @@ pub fn add_device(dev: Device) {
                     let desc = format!("New device ( {} | {} | {} ) found on network", dev.hostname(), dev.mac(), dev.ip());
                     alert( time, date, desc, "info".to_string());
                 }
+            }
             }
         }
         Err(_) => println!("Error opening DB!"),

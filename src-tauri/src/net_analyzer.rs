@@ -43,7 +43,7 @@ pub fn scan() -> Result<Vec<Device>, String>{
                     loop {
                         match data.next(){
                             Some(x1) => {
-                               let mac = data.next().unwrap();
+                                let mac = data.next().unwrap();
                                 data.next();
                                 let ip = str_to_ip(x1.to_string());
                                 if local_net.contains(ip){
@@ -176,6 +176,10 @@ pub async fn pingscan(rate: u64){
                 }
                 });
             pingtasks.push(pingtask);
+            if pingtasks.iter().count() >= 1000 {
+                future::join_all(pingtasks).await;
+                pingtasks = vec![];
+            }
         }
         let devs = scan().unwrap();
         for dev in devs{
