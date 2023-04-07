@@ -1,12 +1,11 @@
 //!
 //!
-
 use std::net::{Ipv4Addr, IpAddr};
 use dns_lookup::lookup_addr;
 use rusqlite::{self, Connection};
 use mac_oui::Oui;
 use time::{self, OffsetDateTime, format_description};
-use crate::{structs::Device, net_analyzer::str_to_ip};
+use crate::{structs::Device, net_analyzer::{str_to_ip, getnet}};
 
 pub fn add_device(dev: Device) {
     let current_time: OffsetDateTime = OffsetDateTime::now_local().unwrap();
@@ -41,7 +40,12 @@ pub fn add_device(dev: Device) {
                 }
                 None => {
                     let ip:IpAddr = IpAddr::V4(dev.ip());
-                    let hname = lookup_addr(&ip).unwrap();
+                    let mut hname = lookup_addr(&ip).unwrap();
+                    let net = getnet().nth(1).unwrap();
+                    let net = format!("{}", net);
+                    if hname == net{
+                        hname = "Gateway Router".to_string();
+                    }
                     let query = format!(
                         "INSERT INTO devices (mac, ip_add, manufacturer, hostname, joindate) VALUES ('{}', '{}', '{}', '{}', '{}')",
                         dev.mac(),
@@ -110,59 +114,6 @@ pub fn alert(time: String, date:String, desc: String, level: String){
         }
         Err(_) => println!("Error opening DB!"),
     }
-}
-
-pub fn is_up (state: bool, ip: Ipv4Addr){
-    let path = platform_dirs::AppDirs::new(Option::Some("NetSecure/data"), false).unwrap();
-    let mut path = path.data_dir;
-    path.push("device_states.db");
-    match Connection::open(path) {
-        Ok(conn) => {
-            if state {
-                let query = format!("UPDATE devices SET state = 'up' WHERE ip_add = '{}'", ip);
-                conn.execute(&query, ()).unwrap();
-            }else{
-                let query = format!("UPDATE devices SET state = 'down' WHERE ip_add = '{}'", ip);
-                conn.execute(&query, ()).unwrap();
-            }
-        }
-        Err(_) => println!("Error opening DB!"),
-    }
-}
-
-struct Devstate {
-    pub ip: String,
-    pub state: String,
-}
-
-pub fn dev_state(ip: Ipv4Addr) -> bool {
-    let path = platform_dirs::AppDirs::new(Option::Some("NetSecure/data"), false).unwrap();
-    let mut path = path.data_dir;
-    path.push("device_states.db");
-    match Connection::open(path) {
-        Ok(conn) => {
-            let query = format!("SELECT state FROM devices WHERE ip_add = '{}'", ip);
-            let mut query = conn.prepare(&query.as_str()).unwrap();
-            let q_result = query
-                .query_map([], |row| {
-                    Ok(Devstate{
-                        ip: ip.to_string(),
-                        state: row.get(0).unwrap(),
-                    })
-                })
-                .unwrap();
-            for state in q_result {
-                let dev = state.unwrap();
-                if dev.state == "up"{
-                    return true;
-                }else {
-                    return false;
-                }
-            }
-        }
-        Err(_) => println!("Error opening DB!"),
-    }
-    return false;
 }
 
 pub struct Alert{

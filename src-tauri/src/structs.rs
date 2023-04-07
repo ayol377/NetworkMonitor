@@ -3,9 +3,6 @@
 
 use std::net::Ipv4Addr;
 
-use serde::Deserialize;
-
-
 pub struct Device {
     pub mac: String,
     pub hostname: String,

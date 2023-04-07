@@ -4,7 +4,6 @@
 use std::{fs::{File, create_dir, self}};
 use rusqlite::*;
 use serde_json::*;
-use crate::net_analyzer::getnet;
 
 pub fn strap(){
     let path = platform_dirs::AppDirs::new(Option::Some("NetSecure/data"), false).unwrap();
@@ -63,10 +62,11 @@ pub fn strap(){
     match File::create(&path) {
         Ok(_) => {
             let data = json!({
+                "email": "",
                 "dns": true,
-                "mitm": false,
-                "eviltwin": false,
-                "cloudbackup": true
+                "mitm": true,
+                "eviltwin": true,
+                "cloudbackup": false
             });
             fs::write(path, data.to_string()).unwrap();
         },
