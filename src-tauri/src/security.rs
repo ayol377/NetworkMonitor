@@ -29,7 +29,7 @@ pub async fn security_coroutine(rate: u64, dns: bool, evil: bool, mitm: bool){
         let path = platform_dirs::AppDirs::new(Option::Some("NetSecure"), false).unwrap();
         let mut path = path.data_dir;
         path.push("settings.json");
-        let data = fs::read_to_string(&path).unwrap();
+        let data = fs::read_to_string(&path).await.unwrap();
         let data = data.as_str();
         let settings = json::parse(data).unwrap();
         let email = settings["email"].as_str().unwrap();
