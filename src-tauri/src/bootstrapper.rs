@@ -6,10 +6,17 @@ use rusqlite::*;
 use serde_json::*;
 
 pub fn strap(){
+    let path = platform_dirs::AppDirs::new(Option::Some("NetSecure"), false).unwrap();
+    let path = path.data_dir;
+    match create_dir(&path){
+        Ok(_) => println!("main dir made"),
+        Err(_) => println!("dir failed"),
+    }
+
     let path = platform_dirs::AppDirs::new(Option::Some("NetSecure/data"), false).unwrap();
     let mut path = path.data_dir;
     match create_dir(&path){
-        Ok(_) => println!("dir made"),
+        Ok(_) => println!("data dir made"),
         Err(_) => println!("dir failed"),
     }
     

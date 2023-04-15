@@ -14,24 +14,28 @@ function navchange (id) {
             document.getElementById("dashboard-div").style.visibility="visible";
             document.getElementById("security-div").style.visibility="hidden";
             document.getElementById("settings-div").style.visibility="hidden";
+            document.getElementById("network-div").style.visibility="hidden";
             break;
         
         case "net-nav":
             document.getElementById("dashboard-div").style.visibility="hidden";
             document.getElementById("security-div").style.visibility="hidden";
             document.getElementById("settings-div").style.visibility="hidden";
+            document.getElementById("network-div").style.visibility="visible";
             break;
 
         case "sec-nav":
             document.getElementById("dashboard-div").style.visibility="hidden";
             document.getElementById("security-div").style.visibility="visible";
             document.getElementById("settings-div").style.visibility="hidden";
+            document.getElementById("network-div").style.visibility="hidden";
             break;
 
         case "set-nav":
             document.getElementById("dashboard-div").style.visibility="hidden";
             document.getElementById("security-div").style.visibility="hidden";
             document.getElementById("settings-div").style.visibility="visible";
+            document.getElementById("network-div").style.visibility="hidden";
             break;
 
         default:

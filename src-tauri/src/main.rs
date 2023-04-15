@@ -15,8 +15,8 @@ use std::{
     net::Ipv4Addr, vec,
 };
 use tokio::{self};
-use tauri::{SystemTray, SystemTrayEvent, Manager, api::process};
-use tauri::{CustomMenuItem, SystemTrayMenu, SystemTrayMenuItem};
+use tauri::{SystemTray, SystemTrayEvent};
+use tauri::{CustomMenuItem, SystemTrayMenu};
 
 mod bootstrapper;
 mod database;
@@ -35,14 +35,14 @@ async fn main() {
     path.push("settings.json");
     match File::open(&path) {
         Ok(_) => {
-           println!("OK!"); 
+           println!("Starting App"); 
         },
         Err(_) => bootstrapper::strap(),
     }
 
 
     check_dns_spoof();
-    tokio::task::spawn(async {pingscan(30).await});
+    tokio::task::spawn(async {pingscan(120).await});
     // tokio::task::spawn(async {security_coroutine(30, dns, etv, mitm).await});
 
     let quit = CustomMenuItem::new("quit".to_string(), "Quit");
@@ -64,7 +64,7 @@ async fn main() {
           })
         .invoke_handler(tauri::generate_handler![
             getdevs, getnetwork, getdev, get_settings,
-            update_setting, get_alert_list,
+            update_setting, get_alert_list, mapdata,
             firebase::logout, signup, getaccount, login,
 
         ])
@@ -94,6 +94,7 @@ pub fn arpscan() {
         Err(_) => todo!(),
     }
 }
+
 #[tauri::command]
 async fn signup(email: String, passwd: String) -> String{
     let res = create_user(email, passwd).await.unwrap();
@@ -115,7 +116,6 @@ fn getaccount() -> String{
     let data = data.as_str();
     let settings = json::parse(data).unwrap();
     let email = settings["email"].as_str().unwrap();
-    println!("Email: {} ", email);
     return email.to_string();
 }
 
@@ -158,6 +158,32 @@ fn getdevs() -> Vec<Vec<String>> {
     for dev in of_hosts{
         return_devs.push(dev);
     }
+    return return_devs;
+}
+
+#[tauri::command]
+fn mapdata() -> Vec<Vec<String>> {
+    let devs = get_devices();
+    let mut return_devs: Vec<Vec<String>> = vec![];
+    for dev in &devs {
+        let mut newdev: Vec<String> = vec![];
+        newdev.push(dev.hostname().to_string());
+        newdev.push(dev.mac().to_string());
+        newdev.push(dev.ip().to_string());
+
+        unsafe { 
+            let r_up_devs = UP_DEVS.clone();
+            if r_up_devs.contains(&dev.ip()){
+                newdev.push("up".to_string());
+                return_devs.push(newdev);
+            }else{
+                newdev.push("down".to_string());
+                return_devs.push(newdev);
+            }
+        }    
+
+    }
+
     return return_devs;
 }
 

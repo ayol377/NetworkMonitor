@@ -46,6 +46,9 @@ pub fn add_device(dev: Device) {
                     if hname == net{
                         hname = "Gateway Router".to_string();
                     }
+                    if hname == dev.ip().to_string(){
+                        hname = "UNKNOWN".to_string();
+                    }
                     let query = format!(
                         "INSERT INTO devices (mac, ip_add, manufacturer, hostname, joindate) VALUES ('{}', '{}', '{}', '{}', '{}')",
                         dev.mac(),
