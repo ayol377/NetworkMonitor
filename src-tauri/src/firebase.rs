@@ -151,9 +151,3 @@ pub fn logout(){
     settings["email"] = "".into();
     fs::write(path, json::stringify_pretty(settings, 1)).unwrap();
 }
-
-pub fn backup(){
-    let path = platform_dirs::AppDirs::new(Option::Some("NetSecure/data"), false).unwrap();
-    let mut path = path.data_dir;
-    path.push("alerts.db");
-}

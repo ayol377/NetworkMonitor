@@ -1,27 +1,9 @@
-use std::error::Error;
-use std::net::{Ipv4Addr, SocketAddr};
 use std::time::Duration;
 use std::thread;
-use dns_lookup::*;
 use tokio::*;
-use trust_dns_resolver::*;
 
 pub fn check_gateway_change(){
 
-}
-
-pub fn check_dns_spoof(){
-    // let test_hosts = [
-    //     "google.com"
-    // ];
-    // // let resolver = Resolver::new(config::ResolverConfig::cloudflare(), config::ResolverOpts::default()).unwrap();
-    // let resolver = Resolver::from_system_conf().unwrap();
-    // for domain in test_hosts{
-    //     // let def_ips = lookup_host(domain).unwrap();
-    //     let response = resolver.lookup_ip(domain).unwrap();
-    //     println!("Sec size: {}", response.iter().count());
-    //     // println!("UnSec size: {}", def_ips.iter().count());
-    // }
 }
 
 pub async fn security_coroutine(rate: u64, dns: bool, evil: bool, mitm: bool){

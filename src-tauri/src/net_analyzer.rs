@@ -3,13 +3,12 @@
 
 
 // Imports
-use std::{net::{IpAddr, Ipv4Addr}, os::windows::process::CommandExt, thread, time::Duration, sync::{Arc, Mutex}};
+use std::{net::{IpAddr, Ipv4Addr}, os::windows::process::CommandExt, thread, time::Duration};
 use futures::future;
 use serde_json::from_str;
 use ipnetwork::{self};
 use tokio::process::Command;
 use crate::{structs::Device, database::{add_device}};
-use indicatif::{ProgressBar, ProgressStyle};
 
 use crate::UP_DEVS;
 
@@ -21,8 +20,8 @@ const DETACHED_PROCESS: u32 = 0x00000008;
 
 pub fn scan() -> Result<Vec<Device>, String>{
     let mut devices:Vec<Device> = vec![];
-    let local_net = getnet();
     let dev_ip = getip();
+    // let local_net = getnet();
 
     // Identify online hosts
     let mut cmd = std::process::Command::new("arp");
@@ -30,7 +29,6 @@ pub fn scan() -> Result<Vec<Device>, String>{
     cmd.arg("-a");
     cmd.arg("-N");
     cmd.arg(format!("{}", dev_ip));
-    //cmd.arg("-a");
 
     match cmd.output() {
         Ok(o) =>{
@@ -40,46 +38,18 @@ pub fn scan() -> Result<Vec<Device>, String>{
                     for _ in 0..9{
                         data.next();
                     }
-                    let mut size:u64 = 0;
-                    loop {
-                        match data.next(){
-                            Some(_) => {
-                                let mac = data.next().unwrap();
-                                data.next();
-                                if mac != "ff-ff-ff-ff-ff-ff"{
-                                    size = size + 1;
-                                }else{
-                                    break;
-                                }
-                                
-                            },
-                            None => break,
-                        }
-                        
-                    }
-                    println!("ARP Table size: {}", size);
-                    let mut data = d.split_ascii_whitespace();
-                    for _ in 0..9{
-                        data.next();
-                    }
-                    println!("Parsing ARP Table");
-                    let arpbar = ProgressBar::new(size);
                     loop {
                         match data.next(){
                             Some(x1) => {
                                 let mac = data.next().unwrap();
                                 data.next();
                                 let ip = str_to_ip(x1.to_string());
-                                let new_dev:Device = Device{mac: mac.to_string(), ip, manufacturer: "DUMMY".to_string(), joindate: "DUMMY".to_string(), hostname: "DUMMY".to_string()};
-                                let txt = format!("Parsing ARP Table : {}", new_dev.mac());
-                                if new_dev.mac() != "ff-ff-ff-ff-ff-ff"{
-                                    arpbar.set_message(txt);
-                                    arpbar.inc(1);
-                                    devices.push(new_dev);
-                                }else{
-                                    arpbar.finish();
-                                    break;
-                                }
+                                    let new_dev:Device = Device{mac: mac.to_string(), ip, manufacturer: "DUMMY".to_string(), joindate: "DUMMY".to_string(), hostname: "DUMMY".to_string()};
+                                    if new_dev.mac() != "ff-ff-ff-ff-ff-ff"{
+                                        devices.push(new_dev);
+                                        break;
+                                    }
+                                    
                                 
                             },
                             None => break,
@@ -174,39 +144,39 @@ pub async fn ping_check(ip: Ipv4Addr) -> bool{
 }
 
 pub async fn pingscan(rate: u64){
-    let batchlimit = 100;
-    let network = getnet();
     loop {
-        println!("Pinging all ips: ");
-        let scanbar = ProgressBar::new(u64::from(network.size()));
         unsafe{UP_DEVS.clear();}
+        let network = getnet();
         let mut pingtasks = Vec::new();
         for ip in network.iter() {
-            let pingtask = tokio::task::spawn(async move{
+            let pingtask = tokio::task::spawn(async move {
                 // println!("pinging {}", ip);
                 let status = ping_check(ip).await;
                 if status {
-                    // println!("{} is up!", ip);
+                    println!("{} is up!", ip);
                     unsafe {UP_DEVS.push(ip);}
                     
                 }else{
                     // println!("{} is down!", ip);
                 }
-                
-            });
+                });
             pingtasks.push(pingtask);
-            
-            if pingtasks.iter().count() >= batchlimit as usize {
+            if pingtasks.iter().count() >= 1000 {
                 future::join_all(pingtasks).await;
-                scanbar.inc(batchlimit);
                 pingtasks = vec![];
             }
         }
-        scanbar.finish();
         let devs = scan().unwrap();
         for dev in devs{
             add_device(dev);
         }
+        println!("~~~~~UP DEVICES~~~~~");
+        unsafe{
+            for dev in &UP_DEVS{
+                println!("{}", dev);
+            }
+        }
+        println!("~~~~~~~~~~~~~~~~~~~~");
         future::join_all(pingtasks).await;
         println!("all pinged, now waiting!");
         thread::sleep(Duration::from_secs(rate));
