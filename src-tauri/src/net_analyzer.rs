@@ -5,12 +5,13 @@
 // Imports
 use std::{net::{IpAddr, Ipv4Addr}, os::windows::process::CommandExt, thread, time::Duration};
 use futures::future;
+use indicatif::ProgressBar;
 use serde_json::from_str;
 use ipnetwork::{self};
-use system_info::HostName;
 use tokio::process::Command;
-use crate::{structs::Device, database::{is_up, add_device, mf_lookup}};
-use dns_lookup::{self, lookup_addr};
+use crate::{structs::Device, database::{add_device}};
+
+use crate::UP_DEVS;
 
 // Constants
 const DETACHED_PROCESS: u32 = 0x00000008;
@@ -21,7 +22,6 @@ const DETACHED_PROCESS: u32 = 0x00000008;
 pub fn scan() -> Result<Vec<Device>, String>{
     let mut devices:Vec<Device> = vec![];
     let dev_ip = getip();
-    let local_net = getnet();
 
     // Identify online hosts
     let mut cmd = std::process::Command::new("arp");
@@ -29,12 +29,34 @@ pub fn scan() -> Result<Vec<Device>, String>{
     cmd.arg("-a");
     cmd.arg("-N");
     cmd.arg(format!("{}", dev_ip));
-    //cmd.arg("-a");
 
     match cmd.output() {
         Ok(o) =>{
             match String::from_utf8(o.stdout){
                 Ok(d) => {
+                    let d2 = d.clone();
+                    let mut data = d2.split_ascii_whitespace();
+                    let mut c = 0;
+                    for _ in 0..9{
+                        data.next();
+                    }
+                    loop {
+                        match data.next(){
+                            Some(_) => {
+                                let mac = data.next().unwrap();
+                                data.next();
+                                if mac.to_string() == "ff-ff-ff-ff-ff-ff"{
+                                    break;
+                                }else{
+                                    c = c + 1;
+                                }      
+                            },
+                            None => break,
+                        }
+                        
+                    }
+                    
+                    let pbar = ProgressBar::new(c);
                     let mut data = d.split_ascii_whitespace();
                     for _ in 0..9{
                         data.next();
@@ -42,24 +64,18 @@ pub fn scan() -> Result<Vec<Device>, String>{
                     loop {
                         match data.next(){
                             Some(x1) => {
-                               let mac = data.next().unwrap();
+                                let mac = data.next().unwrap();
                                 data.next();
                                 let ip = str_to_ip(x1.to_string());
-                                if local_net.contains(ip){
-                                    let hostip = IpAddr::V4(ip);
-                                    let mut hostname = lookup_addr(&hostip).unwrap();
-                                    if hostname == format!("{}", ip){
-                                        hostname = "Unnamed".to_string();
-                                    }
-                                    let manufacturer = mf_lookup(mac.to_string());
-                                    let new_dev:Device = Device{mac: mac.to_string(), ip, manufacturer, joindate: "UNKNOWN".to_string(), hostname};
-                                    // println!("IP: {} => Mac: {}", new_dev.ip(), new_dev.mac());
-                                    if new_dev.mac() != "ff-ff-ff-ff-ff-ff"{
+                                    let new_dev:Device = Device{mac: mac.to_string(), ip, manufacturer: "DUMMY".to_string(), joindate: "DUMMY".to_string(), hostname: "DUMMY".to_string()};
+                                    if mac != "ff-ff-ff-ff-ff-ff"{
                                         devices.push(new_dev);
+                                        pbar.inc(1);
+                                    }else{
+                                        pbar.finish_and_clear();
+                                        break;
                                     }
                                     
-                                    
-                                }
                                 
                             },
                             None => break,
@@ -74,10 +90,6 @@ pub fn scan() -> Result<Vec<Device>, String>{
     }
 
     return Result::Ok(devices);
-}
-
-pub fn get_next_hop(dest_ip:IpAddr) -> Result<Vec<IpAddr>, String>{
-    todo!();
 }
 
 pub fn getip() -> IpAddr {
@@ -158,29 +170,37 @@ pub async fn ping_check(ip: Ipv4Addr) -> bool{
 }
 
 pub async fn pingscan(rate: u64){
+    let batch = 100;
+    let network = getnet();
+    let pbar = ProgressBar::new(network.size().into());
     loop {
-        let network = getnet();
+        unsafe{UP_DEVS.clear();}
         let mut pingtasks = Vec::new();
         for ip in network.iter() {
             let pingtask = tokio::task::spawn(async move {
-                println!("pinging {}", ip);
                 let status = ping_check(ip).await;
                 if status {
-                    println!("{} is up!", ip);
-                    is_up(true, ip);
+                    unsafe {UP_DEVS.push(ip);}
+                    
                 }else{
-                    is_up(false, ip);
                 }
                 });
             pingtasks.push(pingtask);
+            if pingtasks.iter().count() >= batch {
+                future::join_all(pingtasks).await;
+                pingtasks = vec![];
+                pbar.inc(batch as u64);
+            }
         }
+        pbar.finish_and_clear();
         let devs = scan().unwrap();
+        let pbar = ProgressBar::new(devs.len() as u64);
         for dev in devs{
-            println!("Adding device to database");
             add_device(dev);
+            pbar.inc(1);
         }
+        pbar.finish_and_clear();
         future::join_all(pingtasks).await;
-        println!("all pinged, now waiting!");
         thread::sleep(Duration::from_secs(rate));
     }
 }

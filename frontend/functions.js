@@ -13,21 +13,29 @@ function navchange (id) {
         case "dash-nav":
             document.getElementById("dashboard-div").style.visibility="visible";
             document.getElementById("security-div").style.visibility="hidden";
+            document.getElementById("settings-div").style.visibility="hidden";
+            document.getElementById("network-div").style.visibility="hidden";
             break;
         
         case "net-nav":
             document.getElementById("dashboard-div").style.visibility="hidden";
             document.getElementById("security-div").style.visibility="hidden";
+            document.getElementById("settings-div").style.visibility="hidden";
+            document.getElementById("network-div").style.visibility="visible";
             break;
 
         case "sec-nav":
             document.getElementById("dashboard-div").style.visibility="hidden";
             document.getElementById("security-div").style.visibility="visible";
+            document.getElementById("settings-div").style.visibility="hidden";
+            document.getElementById("network-div").style.visibility="hidden";
             break;
 
         case "set-nav":
             document.getElementById("dashboard-div").style.visibility="hidden";
             document.getElementById("security-div").style.visibility="hidden";
+            document.getElementById("settings-div").style.visibility="visible";
+            document.getElementById("network-div").style.visibility="hidden";
             break;
 
         default:
@@ -163,6 +171,83 @@ function settings(){
     });
 }
 
+function alert_gen(){
+    invoke('get_alert_list').then((alerts) => {
+        var html = "";
+        for (i in alerts){
+            alert = alerts[i];
+            var payload = '<div class="alert alert-type m-0" role="alert">time date desc</div>';
+            payload = payload.replace("type", alert[2]);
+            payload = payload.replace("time", alert[0]);
+            payload = payload.replace("date", alert[1]);
+            payload = payload.replace("desc", alert[3]);
+            var html = html.concat(payload);
+        }
+        var list = document.getElementById("notifications");
+        list.innerHTML = html;
+    });
+}
+
+function logout(){
+    invoke('logout');
+    setTimeout(getaccount, 1000);
+}
+
+function signup(){
+    var success = document.getElementById("acct-success");
+    var fail = document.getElementById("acct-err");
+    fail.style.visibility="hidden";
+    success.style.visibility="hidden";
+    var email = document.getElementById("email").value;
+    var passwd = document.getElementById("password").value;
+
+    invoke('signup', {email: email, passwd: passwd}).then((msg) => {
+        console.log(msg);
+        if (msg != "Ok"){
+            fail.style.visibility="inherit";
+            fail.innerHTML = msg;
+        }else {
+            success.style.visibility="inherit";
+            success.innerHTML = "Logged in";
+        }
+    });
+    setTimeout(getaccount, 2000);
+}
+
+function getaccount(){
+    invoke('getaccount').then((email) => {
+        var acct_div = document.getElementById("acct-login-info");
+        if (email != ""){
+            var msg = "Logged in as: ".concat(email);
+            acct_div.innerText = msg;
+        }else {
+            var msg = "Not Logged in".concat(email);
+            acct_div.innerText = msg;
+        }
+    });
+}
+
+function login(){
+    var success = document.getElementById("acct-success");
+    var fail = document.getElementById("acct-err");
+    var email = document.getElementById("email").value;
+    var passwd = document.getElementById("password").value;
+
+    invoke('login', {email: email, passwd: passwd}).then((msg) => {
+        console.log(msg);
+        if (msg != "Ok"){
+            fail.style.visibility="inherit";
+            fail.innerHTML = msg;
+        }else {
+            success.style.visibility="inherit";
+            success.innerHTML = "Logged in";
+        }
+    });
+    setTimeout(getaccount, 2000);
+}
+
+getaccount();
+setInterval(alert_gen, 5000);
 setTimeout(settings, 1000);
 getipstr();
 setInterval(devlistgen, 5000);
