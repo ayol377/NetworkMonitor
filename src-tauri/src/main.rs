@@ -8,14 +8,13 @@
 
 use database::{get_devices, get_alerts};
 use firebase::{create_user, signin};
-use security::check_dns_spoof;
 use crate::net_analyzer::*;
 use std::{
     fs::{*, self},
     net::Ipv4Addr, vec,
 };
 use tokio::{self};
-use tauri::{SystemTray, SystemTrayEvent};
+use tauri::{SystemTray, SystemTrayEvent, Manager};
 use tauri::{CustomMenuItem, SystemTrayMenu};
 
 mod bootstrapper;
@@ -40,8 +39,6 @@ async fn main() {
         Err(_) => bootstrapper::strap(),
     }
 
-
-    check_dns_spoof();
     tokio::task::spawn(async {pingscan(120).await});
     // tokio::task::spawn(async {security_coroutine(30, dns, etv, mitm).await});
 
@@ -49,7 +46,13 @@ async fn main() {
     let tray_menu = SystemTrayMenu::new().add_item(quit);
     let system_tray = SystemTray::new().with_menu(tray_menu);
 
-    tauri::Builder::default()
+    tauri::Builder::default().on_window_event(|event| match event.event() {
+        tauri::WindowEvent::CloseRequested { api, .. } => {
+          event.window().hide().unwrap();
+          api.prevent_close();
+        }
+        _ => {}
+    })
         .system_tray(system_tray)
         .on_system_tray_event(|app, event| match event {
             SystemTrayEvent::MenuItemClick { id, .. } => {
@@ -60,6 +63,12 @@ async fn main() {
                 _ => {}
               }
             }
+
+            SystemTrayEvent::DoubleClick { .. } => {
+                let w = app.get_window("main").unwrap();
+                w.show().unwrap();
+            }
+
             _ => {}
           })
         .invoke_handler(tauri::generate_handler![
@@ -68,15 +77,8 @@ async fn main() {
             firebase::logout, signup, getaccount, login,
 
         ])
-
-        .build(tauri::generate_context!())
-        .expect("error while running tauri application")
-        .run(|_app_handle, event| match event {
-            tauri::RunEvent::ExitRequested { api, .. } => {
-              api.prevent_exit();
-            }
-            _ => {}
-          });
+        .run(tauri::generate_context!())
+        .expect("error while running tauri application");
 
     
 }

@@ -29,7 +29,7 @@ impl Device {
         return self.hostname.as_str();
     }
 
-    pub fn joindate(&self) -> &str{
+    pub fn _joindate(&self) -> &str{
         return self.joindate.as_str();
     }
 }

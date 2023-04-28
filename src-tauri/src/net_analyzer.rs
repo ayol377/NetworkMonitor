@@ -5,6 +5,7 @@
 // Imports
 use std::{net::{IpAddr, Ipv4Addr}, os::windows::process::CommandExt, thread, time::Duration};
 use futures::future;
+use indicatif::ProgressBar;
 use serde_json::from_str;
 use ipnetwork::{self};
 use tokio::process::Command;
@@ -21,7 +22,6 @@ const DETACHED_PROCESS: u32 = 0x00000008;
 pub fn scan() -> Result<Vec<Device>, String>{
     let mut devices:Vec<Device> = vec![];
     let dev_ip = getip();
-    // let local_net = getnet();
 
     // Identify online hosts
     let mut cmd = std::process::Command::new("arp");
@@ -34,6 +34,29 @@ pub fn scan() -> Result<Vec<Device>, String>{
         Ok(o) =>{
             match String::from_utf8(o.stdout){
                 Ok(d) => {
+                    let d2 = d.clone();
+                    let mut data = d2.split_ascii_whitespace();
+                    let mut c = 0;
+                    for _ in 0..9{
+                        data.next();
+                    }
+                    loop {
+                        match data.next(){
+                            Some(_) => {
+                                let mac = data.next().unwrap();
+                                data.next();
+                                if mac.to_string() == "ff-ff-ff-ff-ff-ff"{
+                                    break;
+                                }else{
+                                    c = c + 1;
+                                }      
+                            },
+                            None => break,
+                        }
+                        
+                    }
+                    
+                    let pbar = ProgressBar::new(c);
                     let mut data = d.split_ascii_whitespace();
                     for _ in 0..9{
                         data.next();
@@ -45,8 +68,11 @@ pub fn scan() -> Result<Vec<Device>, String>{
                                 data.next();
                                 let ip = str_to_ip(x1.to_string());
                                     let new_dev:Device = Device{mac: mac.to_string(), ip, manufacturer: "DUMMY".to_string(), joindate: "DUMMY".to_string(), hostname: "DUMMY".to_string()};
-                                    if new_dev.mac() != "ff-ff-ff-ff-ff-ff"{
+                                    if mac != "ff-ff-ff-ff-ff-ff"{
                                         devices.push(new_dev);
+                                        pbar.inc(1);
+                                    }else{
+                                        pbar.finish_and_clear();
                                         break;
                                     }
                                     
@@ -144,41 +170,37 @@ pub async fn ping_check(ip: Ipv4Addr) -> bool{
 }
 
 pub async fn pingscan(rate: u64){
+    let batch = 100;
+    let network = getnet();
+    let pbar = ProgressBar::new(network.size().into());
     loop {
         unsafe{UP_DEVS.clear();}
-        let network = getnet();
         let mut pingtasks = Vec::new();
         for ip in network.iter() {
             let pingtask = tokio::task::spawn(async move {
-                // println!("pinging {}", ip);
                 let status = ping_check(ip).await;
                 if status {
-                    println!("{} is up!", ip);
                     unsafe {UP_DEVS.push(ip);}
                     
                 }else{
-                    // println!("{} is down!", ip);
                 }
                 });
             pingtasks.push(pingtask);
-            if pingtasks.iter().count() >= 1000 {
+            if pingtasks.iter().count() >= batch {
                 future::join_all(pingtasks).await;
                 pingtasks = vec![];
+                pbar.inc(batch as u64);
             }
         }
+        pbar.finish_and_clear();
         let devs = scan().unwrap();
+        let pbar = ProgressBar::new(devs.len() as u64);
         for dev in devs{
             add_device(dev);
+            pbar.inc(1);
         }
-        println!("~~~~~UP DEVICES~~~~~");
-        unsafe{
-            for dev in &UP_DEVS{
-                println!("{}", dev);
-            }
-        }
-        println!("~~~~~~~~~~~~~~~~~~~~");
+        pbar.finish_and_clear();
         future::join_all(pingtasks).await;
-        println!("all pinged, now waiting!");
         thread::sleep(Duration::from_secs(rate));
     }
 }

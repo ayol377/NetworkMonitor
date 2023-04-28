@@ -18,6 +18,7 @@ pub fn add_device(dev: Device) {
         Ok(conn) => {
             let query = format!("SELECT mac FROM devices WHERE mac = '{}'", dev.mac());
             let mut query = conn.prepare(&query.as_str()).unwrap();
+            // Check if device has entry in database
             let mut q_result = query
                 .query_map([], |row| {
                     Ok(Device {
@@ -30,6 +31,7 @@ pub fn add_device(dev: Device) {
                 })
                 .unwrap();
             match q_result.next() {
+                // update ip address if device exists
                 Some(_) => {
                     let query = format!(
                         "UPDATE devices SET ip_add = '{}' WHERE mac = '{}'",
@@ -38,6 +40,7 @@ pub fn add_device(dev: Device) {
                     );
                     conn.execute(query.as_str(), ()).unwrap();
                 }
+                // add device if not in database already
                 None => {
                     let ip:IpAddr = IpAddr::V4(dev.ip());
                     let mut hname = lookup_addr(&ip).unwrap();
